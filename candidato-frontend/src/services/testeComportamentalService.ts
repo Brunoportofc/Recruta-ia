@@ -185,15 +185,63 @@ class TesteComportamentalService {
   }
 
   async salvarRespostas(respostas: RespostaTeste[]): Promise<ResultadoTeste> {
-    // Simula chamada à API
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+    console.log('🎯 [TESTE] Calculando resultado do teste...');
     const resultado = this.calcularResultado(respostas);
     
-    // Salva no localStorage para demonstração
-    localStorage.setItem('teste_comportamental_resultado', JSON.stringify(resultado));
+    console.log('📊 [TESTE] Resultado calculado:', {
+      pontuacaoTotal: resultado.pontuacaoTotal,
+      aprovado: resultado.aprovado
+    });
+    
+    console.log('💾 [TESTE] Salvando no banco de dados...');
+    
+    // Salva no banco via API
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const token = localStorage.getItem('recruta_ai_token');
+    
+    if (!token) {
+      console.error('❌ [TESTE] Token não encontrado');
+      throw new Error('Usuário não autenticado');
+    }
+    
+    const response = await fetch(`${API_URL}/curriculo/teste-comportamental`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        respostas: respostas,
+        resultado: resultado,
+        perfilDominante: this.determinarPerfilDominante(resultado.categorias),
+        pontuacaoTotal: resultado.pontuacaoTotal,
+        tempoTesteSegundos: 0 // Pode adicionar contador de tempo se quiser
+      })
+    });
+    
+    if (!response.ok) {
+      console.error('❌ [TESTE] Erro ao salvar no banco');
+      throw new Error('Erro ao salvar teste comportamental');
+    }
+    
+    const data = await response.json();
+    console.log('✅ [TESTE] Teste salvo com sucesso no banco:', data);
     
     return resultado;
+  }
+  
+  private determinarPerfilDominante(categorias: ResultadoTeste['categorias']): string {
+    let maiorCategoria = 'lideranca';
+    let maiorPontuacao = categorias.lideranca;
+    
+    Object.entries(categorias).forEach(([categoria, pontuacao]) => {
+      if (pontuacao > maiorPontuacao) {
+        maiorCategoria = categoria;
+        maiorPontuacao = pontuacao;
+      }
+    });
+    
+    return maiorCategoria;
   }
 }
 

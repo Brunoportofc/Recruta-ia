@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, FileText, LogOut, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface StatusCandidatura {
   etapa: string;
@@ -16,6 +17,10 @@ export default function AreaCandidato() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
+  
+  const testeConcluido = location.state?.testeConcluido;
+  const mensagem = location.state?.mensagem;
   const novaCandidatura = location.state?.novaCandidatura;
   const resultado = location.state?.resultado;
 
@@ -23,6 +28,17 @@ export default function AreaCandidato() {
   const [statusTracking, setStatusTracking] = useState<StatusCandidatura[]>([]);
 
   useEffect(() => {
+    // Mostra mensagem de sucesso se o teste foi concluído
+    if (testeConcluido && mensagem) {
+      console.log('🎉 [AREA CANDIDATO] Mostrando mensagem de sucesso do teste');
+      toast({
+        title: '✅ Teste Concluído!',
+        description: mensagem,
+        variant: 'default',
+        duration: 5000
+      });
+    }
+    
     // Carrega dados da candidatura do localStorage
     const dadosSalvos = localStorage.getItem('candidatura_dados');
     if (dadosSalvos) {
@@ -31,10 +47,8 @@ export default function AreaCandidato() {
       
       // Inicializa tracking de status
       inicializarStatusTracking(dados.status);
-    } else if (!novaCandidatura) {
-      navigate('/welcome');
     }
-  }, []);
+  }, [testeConcluido, mensagem]);
 
   const inicializarStatusTracking = (statusAtual: string) => {
     const status: StatusCandidatura[] = [

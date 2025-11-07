@@ -17,15 +17,14 @@ export default function TesteComportamental() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Redireciona se não tiver vindo do formulário
-    if (!curriculoData) {
-      navigate('/welcome');
-      return;
-    }
-
-    // Carrega as questões
+    console.log('🎯 [TESTE] Inicializando página de testes...');
+    console.log('🎯 [TESTE] curriculoData do state:', curriculoData ? 'PRESENTE' : 'AUSENTE');
+    
+    // Carrega as questões (não precisa mais do curriculoData para isso)
     const questoesCarregadas = testeComportamentalService.getQuestoes();
     setQuestoes(questoesCarregadas);
+    
+    console.log('✅ [TESTE] Questões carregadas:', questoesCarregadas.length);
   }, []);
 
   const questao = questoes[questaoAtual];
@@ -63,6 +62,8 @@ export default function TesteComportamental() {
     setIsSubmitting(true);
 
     try {
+      console.log('🎯 [TESTE PAGE] Finalizando teste...');
+      
       // Converte Map para array de RespostaTeste
       const respostasArray: RespostaTeste[] = Array.from(respostas.entries()).map(
         ([questaoId, respostaSelecionada]) => ({
@@ -71,28 +72,23 @@ export default function TesteComportamental() {
         })
       );
 
-      // Salva as respostas e obtém o resultado
-      const resultado = await testeComportamentalService.salvarRespostas(respostasArray);
-
-      // Salva dados completos no localStorage para área do candidato
-      const dadosCandidatura = {
-        curriculo: curriculoData,
-        testeResultado: resultado,
-        dataCandidatura: new Date().toISOString(),
-        status: 'analise_curriculo' // Status inicial
-      };
+      console.log('📤 [TESTE PAGE] Enviando respostas para salvar...');
       
-      localStorage.setItem('candidatura_dados', JSON.stringify(dadosCandidatura));
+      // Salva as respostas no banco (não retorna o resultado para o candidato ver)
+      await testeComportamentalService.salvarRespostas(respostasArray);
+      
+      console.log('✅ [TESTE PAGE] Teste finalizado com sucesso!');
+      console.log('🚀 [TESTE PAGE] Redirecionando para área do candidato...');
 
-      // Redireciona para área do candidato
+      // Redireciona para área do candidato SEM mostrar o resultado
       navigate('/area-candidato', {
         state: { 
-          novaCandidatura: true,
-          resultado 
+          testeConcluido: true,
+          mensagem: 'Teste comportamental concluído com sucesso! Seu perfil está sendo analisado.'
         }
       });
     } catch (error) {
-      console.error('Erro ao finalizar teste:', error);
+      console.error('❌ [TESTE PAGE] Erro ao finalizar teste:', error);
       alert('Erro ao processar suas respostas. Tente novamente.');
     } finally {
       setIsSubmitting(false);

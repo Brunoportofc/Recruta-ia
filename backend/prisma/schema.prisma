@@ -1,0 +1,153 @@
+// =====================================================
+// PRISMA SCHEMA - RECRUTA.AI
+// Sistema completo de recrutamento
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ÁREA DO CANDIDATO
+// =====================================================
+
+model Candidato {
+  id                   String   @id @default(uuid()) @db.Uuid
+  
+  // Autenticação
+  linkedinId           String?  @unique @map("linkedin_id")
+  email                String   @unique
+  
+  // Informações pessoais
+  nomeCompleto         String   @map("nome_completo")
+  telefone             String?
+  cidade               String?
+  estado               String?  @db.VarChar(2)
+  linkedinUrl          String?  @map("linkedin_url")
+  fotoPerfilUrl        String?  @map("foto_perfil_url")
+  
+  // Objetivo profissional
+  objetivoProfissional String?  @map("objetivo_profissional") @db.Text
+  
+  // Dados do currículo (JSON)
+  experiencias         Json     @default("[]") // Array de experiências profissionais
+  formacoes            Json     @default("[]") // Array de formações acadêmicas
+  habilidades          Json     @default("[]") // Array de habilidades (strings)
+  idiomas              Json     @default("[]") // Array de idiomas
+  certificacoes        Json     @default("[]") // Array de certificações
+  testesComportamentais Json    @default("[]") @map("testes_comportamentais") // Array de testes realizados
+  
+  // Metadados
+  origemDados          String?  @map("origem_dados") // 'linkedin' ou 'manual'
+  perfilCompleto       Boolean  @default(false) @map("perfil_completo")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  
+  // Relacionamentos
+  candidaturas         Candidatura[]
+  
+  @@index([email])
+  @@index([linkedinId])
+  @@index([createdAt])
+  @@map("candidatos")
+}
+
+// =====================================================
+// ÁREA DE VAGAS E CANDIDATURAS
+// =====================================================
+
+model Job {
+  id                                    String        @id @default(uuid()) @db.Uuid
+  
+  // Informações básicas
+  jobTitle                              String        @map("job_title")
+  jobTitleType                          String        @map("job_title_type") // 'text' ou 'id'
+  company                               String
+  companyType                           String        @map("company_type") // 'text' ou 'id'
+  workplace                             String        // 'ON_SITE', 'HYBRID', 'REMOTE'
+  location                              String
+  description                           String        @db.Text
+  employmentStatus                      String?       @map("employment_status")
+  autoRejectionTemplate                 String?       @map("auto_rejection_template") @db.Text
+  screeningQuestions                    Json          @default("[]") @map("screening_questions")
+  
+  // Dados do recruiter
+  recruiterProject                      String        @map("recruiter_project")
+  recruiterProjectType                  String        @map("recruiter_project_type")
+  recruiterFunctions                    Json          @default("[]") @map("recruiter_functions")
+  recruiterIndustries                   Json          @default("[]") @map("recruiter_industries")
+  recruiterSeniority                    String        @map("recruiter_seniority")
+  recruiterApplyMethodType              String        @map("recruiter_apply_method_type")
+  recruiterApplyMethodNotificationEmail String?       @map("recruiter_apply_method_notification_email")
+  recruiterApplyMethodResumeRequired    Boolean       @default(true) @map("recruiter_apply_method_resume_required")
+  recruiterApplyMethodUrl               String?       @map("recruiter_apply_method_url")
+  recruiterIncludePosterInfo            Boolean       @default(true) @map("recruiter_include_poster_info")
+  recruiterTrackingPixelUrl             String?       @map("recruiter_tracking_pixel_url")
+  recruiterCompanyJobId                 String?       @map("recruiter_company_job_id")
+  recruiterAutoArchiveScreeningQuestions Boolean      @default(true) @map("recruiter_auto_archive_screening_questions")
+  recruiterAutoArchiveOutsideCountry    Boolean       @default(true) @map("recruiter_auto_archive_outside_country")
+  recruiterSendRejectionNotification    Boolean       @default(true) @map("recruiter_send_rejection_notification")
+  
+  // Metadados
+  createdAt                             DateTime      @default(now()) @map("created_at")
+  updatedAt                             DateTime      @updatedAt @map("updated_at")
+  
+  // Relacionamentos
+  candidaturas                          Candidatura[]
+  
+  @@index([createdAt])
+  @@index([workplace])
+  @@index([company])
+  @@map("jobs")
+}
+
+model Candidatura {
+  id                    String    @id @default(uuid()) @db.Uuid
+  candidatoId           String    @map("candidato_id") @db.Uuid
+  jobId                 String    @map("job_id") @db.Uuid
+  
+  // Status da candidatura
+  status                String    @default("analise_curriculo")
+  // Possíveis valores:
+  // - analise_curriculo
+  // - teste_tecnico
+  // - entrevista_rh
+  // - entrevista_tecnica
+  // - proposta
+  // - aprovado
+  // - rejeitado
+  // - desistiu
+  
+  // Dados da candidatura
+  curriculoSnapshot     Json      @map("curriculo_snapshot") // Snapshot do currículo
+  testeResultado        Json?     @map("teste_resultado")    // Resultado do teste
+  
+  // Feedback e notas
+  notasInternas         String?   @map("notas_internas") @db.Text
+  feedbackCandidato     String?   @map("feedback_candidato") @db.Text
+  
+  // Timeline
+  dataCandidatura       DateTime  @default(now()) @map("data_candidatura")
+  dataUltimaAtualizacao DateTime  @updatedAt @map("data_ultima_atualizacao")
+  dataFinalizacao       DateTime? @map("data_finalizacao")
+  
+  // Metadados
+  origemAplicacao       String    @default("plataforma") @map("origem_aplicacao")
+  
+  // Relacionamentos
+  candidato             Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  job                   Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  @@unique([candidatoId, jobId]) // Um candidato só pode se candidatar uma vez por vaga
+  @@index([candidatoId])
+  @@index([jobId])
+  @@index([status])
+  @@index([dataCandidatura])
+  @@map("candidaturas")
+}
+

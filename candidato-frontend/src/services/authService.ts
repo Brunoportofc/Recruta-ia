@@ -111,11 +111,15 @@ class AuthService {
 
   async handleLinkedInCallback(code: string, state: string): Promise<{ user: User; resumeData?: LinkedInResumeData }> {
     try {
+      console.log('🔵 [AUTH SERVICE] handleLinkedInCallback iniciado');
+      
       // Valida o state
       const savedState = sessionStorage.getItem('linkedin_oauth_state');
       if (state !== savedState) {
         throw new Error('State inválido - possível ataque CSRF');
       }
+
+      console.log('🔵 [AUTH SERVICE] State validado');
 
       // 2. Envia código para o backend
       const response = await fetch(
@@ -123,29 +127,45 @@ class AuthService {
       );
 
       const data = await response.json();
+      
+      console.log('🔵 [AUTH SERVICE] Resposta do backend:', {
+        success: data.success,
+        hasToken: !!data.token,
+        hasUser: !!data.user,
+        hasResumeData: !!data.resumeData
+      });
 
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Erro ao processar callback do LinkedIn');
       }
 
       // 3. Salva token e usuário
+      console.log('💾 [AUTH SERVICE] Salvando token no localStorage...');
+      console.log('💾 [AUTH SERVICE] Token (primeiros 30 chars):', data.token.substring(0, 30) + '...');
+      
       localStorage.setItem(this.TOKEN_KEY, data.token);
       localStorage.setItem(this.USER_KEY, JSON.stringify(data.user));
 
+      console.log('✅ [AUTH SERVICE] Token salvo!');
+      console.log('✅ [AUTH SERVICE] Verificando: token existe?', !!localStorage.getItem(this.TOKEN_KEY));
+
       // 4. Salva dados do currículo se disponíveis
       if (data.resumeData) {
+        console.log('💾 [AUTH SERVICE] Salvando resumeData...');
         localStorage.setItem(this.RESUME_DATA_KEY, JSON.stringify(data.resumeData));
       }
 
       // Limpa o state
       sessionStorage.removeItem('linkedin_oauth_state');
 
+      console.log('✅ [AUTH SERVICE] handleLinkedInCallback concluído com sucesso');
+
       return {
         user: data.user,
         resumeData: data.resumeData
       };
     } catch (error) {
-      console.error('Erro no callback do LinkedIn:', error);
+      console.error('❌ [AUTH SERVICE] Erro no callback do LinkedIn:', error);
       throw error;
     }
   }

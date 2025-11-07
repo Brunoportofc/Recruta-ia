@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { linkedinService } from '../../services/linkedinService.js';
+import prisma from '../../lib/prisma.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'seu-secret-super-seguro-aqui';
 const JWT_EXPIRES_IN = '7d';
@@ -81,14 +82,46 @@ class AuthController {
       const resumeData = linkedinService.mapLinkedInToResumeData(linkedInProfile);
       console.log('✅ [CALLBACK] Dados mapeados:', JSON.stringify(resumeData, null, 2));
 
+      // Salva ou atualiza candidato no banco de dados
+      console.log('🔵 [CALLBACK] Salvando candidato no banco de dados...');
+      const candidato = await prisma.candidato.upsert({
+        where: {
+          linkedinId: resumeData.linkedinId || resumeData.email
+        },
+        update: {
+          email: resumeData.email,
+          nomeCompleto: resumeData.nomeCompleto,
+          telefone: resumeData.telefone || null,
+          cidade: resumeData.cidade || null,
+          estado: resumeData.estado || null,
+          linkedinUrl: resumeData.linkedin || null,
+          fotoPerfilUrl: resumeData.fotoPerfil || null,
+          origemDados: 'linkedin',
+          updatedAt: new Date()
+        },
+        create: {
+          linkedinId: resumeData.linkedinId || null,
+          email: resumeData.email,
+          nomeCompleto: resumeData.nomeCompleto,
+          telefone: resumeData.telefone || null,
+          cidade: resumeData.cidade || null,
+          estado: resumeData.estado || null,
+          linkedinUrl: resumeData.linkedin || null,
+          fotoPerfilUrl: resumeData.fotoPerfil || null,
+          origemDados: 'linkedin',
+          perfilCompleto: false
+        }
+      });
+      console.log('✅ [CALLBACK] Candidato salvo no banco:', candidato.id);
+
       // Gera JWT token para nossa aplicação
       console.log('🔵 [CALLBACK] Gerando JWT token...');
       const authToken = jwt.sign(
         {
-          userId: resumeData.linkedinId,
-          email: resumeData.email,
-          name: resumeData.nomeCompleto,
-          linkedinId: resumeData.linkedinId
+          userId: candidato.id,
+          email: candidato.email,
+          name: candidato.nomeCompleto,
+          linkedinId: candidato.linkedinId
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -101,11 +134,11 @@ class AuthController {
         success: true,
         token: authToken,
         user: {
-          id: resumeData.linkedinId,
-          name: resumeData.nomeCompleto,
-          email: resumeData.email,
-          linkedinId: resumeData.linkedinId,
-          avatar: resumeData.fotoPerfil
+          id: candidato.id,
+          name: candidato.nomeCompleto,
+          email: candidato.email,
+          linkedinId: candidato.linkedinId,
+          avatar: candidato.fotoPerfilUrl
         },
         resumeData // Dados completos para preencher o formulário
       });

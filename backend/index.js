@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import jobsRoutes from './routes/jobs.js';
 import authRoutes from './routes/auth.js';
+import curriculoRoutes from './routes/curriculo.js';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use(cookieParser());
 // Rotas
 app.use('/auth', authRoutes);
 app.use('/jobs', jobsRoutes);
+app.use('/curriculo', curriculoRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {
@@ -38,5 +40,6 @@ app.listen(PORT, () => {
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Auth API: http://localhost:${PORT}/auth`);
   console.log(`📋 Jobs API: http://localhost:${PORT}/jobs`);
+  console.log(`📄 Curriculo API: http://localhost:${PORT}/curriculo`);
 });
 
