@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getLocations, Location } from "@/services/jobsService";
 
 interface ScreeningQuestion {
   question: string;
@@ -28,6 +29,10 @@ export default function JobForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
+
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     // Campos obrigatórios
@@ -73,6 +78,30 @@ export default function JobForm() {
     choices: [],
     expected_choices: [],
   });
+
+  // Carregar localizações ao montar o componente
+  useEffect(() => {
+    const loadLocations = async () => {
+      console.log('🔄 [JobForm] Iniciando carregamento de localizações...');
+      try {
+        setLoadingLocations(true);
+        setLocationsError(null);
+        const locationsData = await getLocations();
+        console.log('✅ [JobForm] Localizações carregadas:', locationsData);
+        console.log('✅ [JobForm] Total:', locationsData.length);
+        setLocations(locationsData);
+      } catch (error) {
+        console.error('❌ [JobForm] Erro ao carregar localizações:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar localizações';
+        setLocationsError(errorMessage);
+      } finally {
+        setLoadingLocations(false);
+        console.log('🏁 [JobForm] Carregamento finalizado');
+      }
+    };
+
+    loadLocations();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,44 +314,63 @@ export default function JobForm() {
                       value={formData.location}
                       onValueChange={(value) => handleChange("location", value)}
                       required
+                      disabled={loadingLocations}
                     >
                       <SelectTrigger id="location">
-                        <SelectValue placeholder="Selecione a localização" />
+                        <SelectValue placeholder={
+                          loadingLocations 
+                            ? "Carregando localizações..." 
+                            : locationsError 
+                            ? "Erro ao carregar localizações" 
+                            : "Selecione a localização"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="103119278">São Paulo - SP</SelectItem>
-                        <SelectItem value="103454366">Rio de Janeiro - RJ</SelectItem>
-                        <SelectItem value="103323681">Belo Horizonte - MG</SelectItem>
-                        <SelectItem value="103883259">Brasília - DF</SelectItem>
-                        <SelectItem value="103154980">Curitiba - PR</SelectItem>
-                        <SelectItem value="103254728">Porto Alegre - RS</SelectItem>
-                        <SelectItem value="103177389">Recife - PE</SelectItem>
-                        <SelectItem value="103195834">Salvador - BA</SelectItem>
-                        <SelectItem value="103267518">Fortaleza - CE</SelectItem>
-                        <SelectItem value="103191675">Manaus - AM</SelectItem>
-                        <SelectItem value="103176292">Campinas - SP</SelectItem>
-                        <SelectItem value="103162431">Florianópolis - SC</SelectItem>
-                        <SelectItem value="103347776">Vitória - ES</SelectItem>
-                        <SelectItem value="103221083">Goiânia - GO</SelectItem>
-                        <SelectItem value="103348753">Natal - RN</SelectItem>
-                        <SelectItem value="103259389">João Pessoa - PB</SelectItem>
-                        <SelectItem value="103267518">Aracaju - SE</SelectItem>
-                        <SelectItem value="103195834">Maceió - AL</SelectItem>
-                        <SelectItem value="103267518">Teresina - PI</SelectItem>
-                        <SelectItem value="103191675">São Luís - MA</SelectItem>
-                        <SelectItem value="103176292">Belém - PA</SelectItem>
-                        <SelectItem value="103162431">Macapá - AP</SelectItem>
-                        <SelectItem value="103347776">Boa Vista - RR</SelectItem>
-                        <SelectItem value="103221083">Rio Branco - AC</SelectItem>
-                        <SelectItem value="103348753">Palmas - TO</SelectItem>
-                        <SelectItem value="103259389">Cuiabá - MT</SelectItem>
-                        <SelectItem value="103267518">Campo Grande - MS</SelectItem>
-                        <SelectItem value="103195834">Porto Velho - RO</SelectItem>
+                        {loadingLocations ? (
+                          <SelectItem value="loading" disabled>
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Carregando localizações...
+                            </div>
+                          </SelectItem>
+                        ) : locationsError ? (
+                          <SelectItem value="error" disabled>
+                            Erro ao carregar localizações
+                          </SelectItem>
+                        ) : locations.length === 0 ? (
+                          <SelectItem value="empty" disabled>
+                            Nenhuma localização disponível
+                          </SelectItem>
+                        ) : (
+                          locations.map((location) => {
+                            // A API pode retornar diferentes formatos, então tentamos diferentes propriedades
+                            const locationId = location.id || location.location_id || location.code || '';
+                            const locationName = location.name || location.location_name || location.display_name || locationId;
+                            
+                            return (
+                              <SelectItem key={locationId} value={locationId}>
+                                {locationName}
+                              </SelectItem>
+                            );
+                          })
+                        )}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      A localização será convertida para o ID correto no backend
-                    </p>
+                    {locationsError && (
+                      <p className="text-xs text-destructive">
+                        {locationsError}. Verifique as configurações da Unipile no backend.
+                      </p>
+                    )}
+                    {!loadingLocations && !locationsError && locations.length === 0 && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                        ⚠️ Nenhuma localização disponível. Verifique os logs do backend para mais detalhes sobre a integração com a Unipile.
+                      </p>
+                    )}
+                    {!loadingLocations && !locationsError && locations.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        ✅ {locations.length} localização(ões) disponível(is) da API da Unipile
+                      </p>
+                    )}
                   </div>
                 </div>
 

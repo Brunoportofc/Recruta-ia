@@ -1,8 +1,12 @@
 -- Exemplo de estrutura da tabela jobs no Supabase
 -- Execute este SQL no Supabase SQL Editor para criar a tabela
 
+-- Habilitar extensão uuid-ossp se ainda não estiver habilitada
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Recriar a tabela jobs com UUID gerado via trigger
 CREATE TABLE IF NOT EXISTS jobs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id UUID PRIMARY KEY,
   
   -- Informações básicas
   job_title TEXT NOT NULL,
@@ -33,9 +37,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   recruiter_auto_archive_outside_country BOOLEAN DEFAULT true,
   recruiter_send_rejection_notification BOOLEAN DEFAULT true,
   
-  -- Metadados
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  -- Metadados (not null para garantir que os triggers funcionem)
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 -- Índices para melhor performance
@@ -43,15 +47,50 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_workplace ON jobs(workplace);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company);
 
--- Trigger para atualizar updated_at automaticamente
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- Função para manipular timestamps
+CREATE OR REPLACE FUNCTION trigger_set_timestamps()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.created_at = NOW();
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Função para atualizar apenas updated_at
+CREATE OR REPLACE FUNCTION trigger_set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_jobs_updated_at BEFORE UPDATE ON jobs
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Trigger para INSERT - define both created_at e updated_at
+CREATE TRIGGER set_jobs_timestamps
+    BEFORE INSERT ON jobs
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_set_timestamps();
+
+-- Trigger para UPDATE - atualiza apenas updated_at
+CREATE TRIGGER update_jobs_updated_at
+    BEFORE UPDATE ON jobs
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_set_updated_at();
+
+-- Função para gerar UUID antes da inserção
+CREATE OR REPLACE FUNCTION trigger_set_uuid()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.id IS NULL THEN
+        NEW.id = uuid_generate_v4();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para gerar UUID
+CREATE TRIGGER set_jobs_uuid
+    BEFORE INSERT ON jobs
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_uuid();
 

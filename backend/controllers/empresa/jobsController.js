@@ -1,4 +1,5 @@
 import jobsRepository from '../../repositories/empresa/jobsRepository.js';
+import unipileService from '../../services/unipileService.js';
 
 class JobsController {
   async getAllJobs(req, res) {
@@ -11,6 +12,60 @@ class JobsController {
         error: 'Erro ao buscar vagas',
         details: error.message 
       });
+    }
+  }
+
+  async getLocations(req, res) {
+    const startTime = Date.now();
+    console.log('\n🌐 [GET /jobs/locations] Requisição recebida');
+    console.log('📍 Origin:', req.headers.origin || 'N/A');
+    console.log('📍 IP:', req.ip || req.connection.remoteAddress);
+    
+    // Definir timeout de 15 segundos para a requisição completa
+    const timeout = setTimeout(() => {
+      if (!res.headersSent) {
+        console.error('⏱️ Timeout: Requisição demorou mais de 15 segundos');
+        res.status(504).json({ 
+          error: 'Timeout ao buscar localizações',
+          details: 'A requisição à API da Unipile demorou muito para responder'
+        });
+      }
+    }, 15000);
+    
+    try {
+      const locations = await unipileService.getLocations();
+      clearTimeout(timeout);
+      const duration = Date.now() - startTime;
+      console.log(`✅ Retornando ${locations.length} localização(ões) para o frontend (${duration}ms)`);
+      res.json({ data: locations });
+    } catch (error) {
+      clearTimeout(timeout);
+      const duration = Date.now() - startTime;
+      console.error(`❌ Erro no controller ao buscar localizações (${duration}ms):`);
+      console.error('  Tipo:', error.name);
+      console.error('  Mensagem:', error.message);
+      
+      // Se houver resposta HTTP da Unipile, logar também
+      if (error.response) {
+        console.error('  Status HTTP:', error.response.status);
+        console.error('  Dados da resposta:', JSON.stringify(error.response.data, null, 2));
+        console.error('  Headers da resposta:', error.response.headers);
+      } else if (error.request) {
+        console.error('  Request feito mas sem resposta');
+        console.error('  Code:', error.code);
+      }
+      
+      // Por enquanto, retornar lista vazia em vez de erro 500
+      // Isso permite que o frontend continue funcionando
+      // TODO: Uma vez que a API da Unipile esteja funcionando, remover este fallback
+      if (!res.headersSent) {
+        console.warn('⚠️ Retornando lista vazia como fallback devido ao erro da Unipile');
+        res.json({ 
+          data: [],
+          warning: 'Não foi possível carregar localizações da Unipile. Verifique os logs do servidor.',
+          error_details: error.message
+        });
+      }
     }
   }
 
@@ -132,11 +187,7 @@ class JobsController {
       recruiter_company_job_id: payload.recruiter.company_job_id || null,
       recruiter_auto_archive_screening_questions: payload.recruiter.auto_archive_applicants?.screening_questions ?? true,
       recruiter_auto_archive_outside_country: payload.recruiter.auto_archive_applicants?.outside_of_country ?? true,
-      recruiter_send_rejection_notification: payload.recruiter.send_rejection_notification ?? true,
-      
-      // Metadados
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      recruiter_send_rejection_notification: payload.recruiter.send_rejection_notification ?? true
     };
   }
 }

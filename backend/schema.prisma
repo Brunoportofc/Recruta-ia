@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobTitleType {
+  text
+  id
+}
+
+enum CompanyType {
+  text
+  id
+}
+
+enum Workplace {
+  ON_SITE
+  HYBRID
+  REMOTE
+}
+
+enum EmploymentStatus {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TEMPORARY
+  OTHER
+  VOLUNTEER
+  INTERNSHIP
+}
+
+enum RecruiterProjectType {
+  name
+  id
+}
+
+enum Seniority {
+  INTERNSHIP
+  ENTRY_LEVEL
+  ASSOCIATE
+  MID_SENIOR_LEVEL
+  DIRECTOR
+  EXECUTIVE
+  NOT_APPLICABLE
+}
+
+enum ApplyMethodType {
+  linkedin
+  external
+}
+
+model Job {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Informações básicas
+  jobTitle           String           @map("job_title")
+  jobTitleType       JobTitleType     @map("job_title_type")
+  company            String
+  companyType        CompanyType      @map("company_type")
+  workplace          Workplace
+  location           String
+  description        String           @db.Text
+  employmentStatus   EmploymentStatus? @map("employment_status")
+  autoRejectionTemplate String?       @map("auto_rejection_template") @db.Text
+  screeningQuestions Json             @default("[]") @map("screening_questions")
+
+  // Dados do recruiter
+  recruiterProject                    String              @map("recruiter_project")
+  recruiterProjectType                RecruiterProjectType @map("recruiter_project_type")
+  recruiterFunctions                  Json                @default("[]") @map("recruiter_functions")
+  recruiterIndustries                 Json                @default("[]") @map("recruiter_industries")
+  recruiterSeniority                  Seniority           @map("recruiter_seniority")
+  recruiterApplyMethodType            ApplyMethodType     @map("recruiter_apply_method_type")
+  recruiterApplyMethodNotificationEmail String?           @map("recruiter_apply_method_notification_email")
+  recruiterApplyMethodResumeRequired  Boolean            @default(true) @map("recruiter_apply_method_resume_required")
+  recruiterApplyMethodUrl             String?            @map("recruiter_apply_method_url")
+  recruiterIncludePosterInfo          Boolean            @default(true) @map("recruiter_include_poster_info")
+  recruiterTrackingPixelUrl           String?            @map("recruiter_tracking_pixel_url")
+  recruiterCompanyJobId               String?            @map("recruiter_company_job_id")
+  recruiterAutoArchiveScreeningQuestions Boolean         @default(true) @map("recruiter_auto_archive_screening_questions")
+  recruiterAutoArchiveOutsideCountry  Boolean            @default(true) @map("recruiter_auto_archive_outside_country")
+  recruiterSendRejectionNotification  Boolean            @default(true) @map("recruiter_send_rejection_notification")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([workplace])
+  @@index([company])
+  @@map("jobs")
+}
+

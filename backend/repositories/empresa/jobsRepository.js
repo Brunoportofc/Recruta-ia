@@ -15,13 +15,21 @@ class JobsRepository {
   }
 
   async create(jobData) {
+    const {
+      id,           // gerado via trigger uuid
+      created_at,   // gerado via trigger timestamps
+      updated_at,   // gerado via trigger timestamps
+      ...safeJobData
+    } = jobData;
+    
     const { data, error } = await supabase
       .from('jobs')
-      .insert([jobData])
+      .insert([safeJobData])
       .select()
       .single();
 
     if (error) {
+      console.error('Detalhes do erro Supabase:', error);
       throw new Error(`Erro ao criar vaga: ${error.message}`);
     }
 

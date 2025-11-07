@@ -3,10 +3,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configuração do Supabase com chaves mockadas
-// TODO: Substituir por variáveis de ambiente reais
-const supabaseUrl = process.env.SUPABASE_URL || 'https://mock-project.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'mock-anon-key-123456789';
+// Preferir variáveis de ambiente reais. Falhar rápido se não estiverem definidas
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+	// Mensagem clara para desenvolvedores — evita erros genéricos de fetch
+	throw new Error([
+		'SUPABASE_URL e SUPABASE_ANON_KEY não estão definidas.',
+		'Por favor crie um arquivo .env na pasta /backend com as variáveis abaixo:',
+		'SUPABASE_URL=https://seu-projeto.supabase.co',
+		'SUPABASE_ANON_KEY=eyJ...'
+	].join('\n'));
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
