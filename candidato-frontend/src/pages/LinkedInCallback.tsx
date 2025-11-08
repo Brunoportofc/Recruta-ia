@@ -66,10 +66,13 @@ export default function LinkedInCallback() {
       setSuccess(true);
       setIsProcessing(false);
 
-      // Redireciona para o formulário
-      console.log('🔵 [CALLBACK] Redirecionando para formulário...');
+      // Verifica se o usuário já completou o perfil
+      console.log('🔍 [CALLBACK] Verificando se perfil está completo...');
+      
+      // Usa o HomeRedirect para decidir o destino (ele já tem a lógica de verificação)
+      console.log('🔵 [CALLBACK] Redirecionando para página inicial...');
       setTimeout(() => {
-        navigate('/formulario-curriculo', { replace: true });
+        navigate('/', { replace: true });
       }, 800);
     } catch (err) {
       console.error('❌ [CALLBACK] Erro ao processar:', err);

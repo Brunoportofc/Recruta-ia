@@ -1,56 +1,139 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { curriculoService } from '@/services/curriculoService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Edit2, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Save, Edit2, X, Loader2 } from 'lucide-react';
 
 export default function MeuPerfil() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const [isEditing, setIsEditing] = useState(false);
-  const [dadosCandidatura, setDadosCandidatura] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [originalData, setOriginalData] = useState<any>(null);
   const [formData, setFormData] = useState<any>(null);
 
   useEffect(() => {
-    const dadosSalvos = localStorage.getItem('candidatura_dados');
-    if (dadosSalvos) {
-      const dados = JSON.parse(dadosSalvos);
-      setDadosCandidatura(dados);
-      setFormData(dados.curriculo);
-    } else {
-      navigate('/welcome');
-    }
+    carregarDados();
   }, []);
 
-  const handleSave = () => {
-    if (!dadosCandidatura || !formData) return;
+  const carregarDados = async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔍 [MEU PERFIL] Buscando dados do candidato...');
+      const curriculo = await curriculoService.buscarCurriculo();
+      
+      if (!curriculo) {
+        console.log('❌ [MEU PERFIL] Nenhum currículo encontrado');
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar seus dados.',
+          variant: 'destructive'
+        });
+        navigate('/formulario-curriculo');
+        return;
+      }
 
-    // Atualiza os dados no localStorage
-    const dadosAtualizados = {
-      ...dadosCandidatura,
-      curriculo: formData
-    };
-    
-    localStorage.setItem('candidatura_dados', JSON.stringify(dadosAtualizados));
-    setDadosCandidatura(dadosAtualizados);
-    setIsEditing(false);
-    
-    alert('Perfil atualizado com sucesso!');
+      console.log('✅ [MEU PERFIL] Dados carregados com sucesso');
+      console.log('📋 [MEU PERFIL] Dados do currículo:', curriculo);
+      
+      // Normaliza os dados para garantir compatibilidade
+      const dadosNormalizados = {
+        ...curriculo,
+        linkedin: curriculo.linkedin || curriculo.linkedinUrl || '',
+        linkedinUrl: curriculo.linkedin || curriculo.linkedinUrl || ''
+      };
+      
+      setOriginalData(dadosNormalizados);
+      setFormData(dadosNormalizados);
+    } catch (error) {
+      console.error('❌ [MEU PERFIL] Erro ao carregar dados:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar seus dados.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!formData) return;
+
+    setIsSaving(true);
+    try {
+      console.log('💾 [MEU PERFIL] Salvando alterações...');
+      
+      // Prepara dados para enviar ao backend
+      const dadosParaSalvar = {
+        nomeCompleto: formData.nomeCompleto,
+        email: formData.email,
+        telefone: formData.telefone || '',
+        cidade: formData.cidade || '',
+        estado: formData.estado || '',
+        linkedin: formData.linkedin || formData.linkedinUrl || '',
+        objetivoProfissional: formData.objetivoProfissional || '',
+        experiencias: formData.experiencias || [],
+        formacoes: formData.formacoes || [],
+        habilidades: formData.habilidades || [],
+        idiomas: formData.idiomas || [],
+        certificacoes: formData.certificacoes || []
+      };
+
+      const resultado = await curriculoService.salvarCurriculo(dadosParaSalvar);
+      
+      if (resultado.success) {
+        console.log('✅ [MEU PERFIL] Dados salvos com sucesso');
+        setOriginalData(formData);
+        setIsEditing(false);
+        
+        toast({
+          title: 'Sucesso!',
+          description: 'Perfil atualizado com sucesso.',
+          variant: 'default'
+        });
+      }
+    } catch (error) {
+      console.error('❌ [MEU PERFIL] Erro ao salvar:', error);
+      toast({
+        title: 'Erro ao salvar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
     // Restaura dados originais
-    setFormData(dadosCandidatura?.curriculo);
+    setFormData({ ...originalData });
     setIsEditing(false);
   };
 
   const updateField = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando seus dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!formData) {
     return null;
@@ -78,19 +161,28 @@ export default function MeuPerfil() {
         </div>
 
         {!isEditing ? (
-          <Button onClick={() => setIsEditing(true)}>
+          <Button onClick={() => setIsEditing(true)} disabled={isSaving}>
             <Edit2 className="h-4 w-4 mr-2" />
             Editar
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
               <X className="h-4 w-4 mr-2" />
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -125,7 +217,7 @@ export default function MeuPerfil() {
                 <div>
                   <Label>Telefone</Label>
                   <Input
-                    value={formData.telefone}
+                    value={formData.telefone || ''}
                     onChange={(e) => updateField('telefone', e.target.value)}
                     disabled={!isEditing}
                   />
@@ -134,7 +226,7 @@ export default function MeuPerfil() {
                 <div>
                   <Label>Cidade</Label>
                   <Input
-                    value={formData.cidade}
+                    value={formData.cidade || ''}
                     onChange={(e) => updateField('cidade', e.target.value)}
                     disabled={!isEditing}
                   />
@@ -143,7 +235,7 @@ export default function MeuPerfil() {
                 <div>
                   <Label>Estado</Label>
                   <Input
-                    value={formData.estado}
+                    value={formData.estado || ''}
                     onChange={(e) => updateField('estado', e.target.value)}
                     disabled={!isEditing}
                   />
@@ -152,8 +244,8 @@ export default function MeuPerfil() {
                 <div className="md:col-span-2">
                   <Label>LinkedIn</Label>
                   <Input
-                    value={formData.linkedinUrl}
-                    onChange={(e) => updateField('linkedinUrl', e.target.value)}
+                    value={formData.linkedin || formData.linkedinUrl || ''}
+                    onChange={(e) => updateField('linkedin', e.target.value)}
                     disabled={!isEditing}
                   />
                 </div>
@@ -169,9 +261,10 @@ export default function MeuPerfil() {
             <CardContent>
               <textarea
                 className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-                value={formData.objetivoProfissional}
+                value={formData.objetivoProfissional || ''}
                 onChange={(e) => updateField('objetivoProfissional', e.target.value)}
                 disabled={!isEditing}
+                placeholder="Descreva seu objetivo profissional..."
               />
             </CardContent>
           </Card>
