@@ -14,6 +14,7 @@ import CandidatesList from "./pages/Candidates/index";
 import AIAnalysis from "./pages/AI/index";
 import Tests from "./pages/Tests";
 import Settings from "./pages/Settings";
+import LinkedInCallback from "./pages/LinkedInCallback";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -122,6 +123,10 @@ const AppRoutes = () => (
             </AppLayout>
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/auth/linkedin/callback"
+        element={<LinkedInCallback />}
       />
       <Route path="*" element={<NotFound />} />
     </Routes>

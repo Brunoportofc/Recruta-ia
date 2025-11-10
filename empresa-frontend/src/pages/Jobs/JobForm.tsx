@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ScreeningQuestion {
   question: string;
@@ -28,7 +29,9 @@ export default function JobForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
+  const { toast } = useToast();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Campos obrigatórios
     job_title: { text: "" },
@@ -76,46 +79,85 @@ export default function JobForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Preparar dados para API (account_id virá do backend)
-    const payload = {
-      job_title: formData.job_title.text ? { text: formData.job_title.text } : { id: formData.job_title.text },
-      company: formData.company.text ? { text: formData.company.text } : { id: formData.company.text },
-      workplace: formData.workplace,
-      location: formData.location,
-      description: formData.description,
-      ...(formData.employment_status && { employment_status: formData.employment_status }),
-      ...(formData.auto_rejection_template && { auto_rejection_template: formData.auto_rejection_template }),
-      ...(formData.screening_questions.length > 0 && { screening_questions: formData.screening_questions }),
-      recruiter: {
-        project: formData.recruiter.project.name ? { name: formData.recruiter.project.name } : { id: formData.recruiter.project.name },
-        functions: formData.recruiter.functions,
-        industries: formData.recruiter.industries,
-        seniority: formData.recruiter.seniority,
-        apply_method: formData.recruiter.apply_method.type === "linkedin"
-          ? {
-              type: "linkedin",
-              notification_email: formData.recruiter.apply_method.notification_email,
-              resume_required: formData.recruiter.apply_method.resume_required,
-            }
-          : {
-              type: "external",
-              url: formData.recruiter.apply_method.url,
-            },
-        include_poster_info: formData.recruiter.include_poster_info,
-        ...(formData.recruiter.tracking_pixel_url && { tracking_pixel_url: formData.recruiter.tracking_pixel_url }),
-        ...(formData.recruiter.company_job_id && { company_job_id: formData.recruiter.company_job_id }),
-        auto_archive_applicants: formData.recruiter.auto_archive_applicants,
-        send_rejection_notification: formData.recruiter.send_rejection_notification,
-      },
-    };
+    try {
+      // Preparar dados para API
+      const payload = {
+        job_title: formData.job_title.text ? { text: formData.job_title.text } : { id: formData.job_title.text },
+        company: formData.company.text ? { text: formData.company.text } : { id: formData.company.text },
+        workplace: formData.workplace,
+        location: formData.location,
+        description: formData.description,
+        ...(formData.employment_status && { employment_status: formData.employment_status }),
+        ...(formData.auto_rejection_template && { auto_rejection_template: formData.auto_rejection_template }),
+        ...(formData.screening_questions.length > 0 && { screening_questions: formData.screening_questions }),
+        recruiter: {
+          project: formData.recruiter.project.name ? { name: formData.recruiter.project.name } : { id: formData.recruiter.project.name },
+          functions: formData.recruiter.functions,
+          industries: formData.recruiter.industries,
+          seniority: formData.recruiter.seniority,
+          apply_method: formData.recruiter.apply_method.type === "linkedin"
+            ? {
+                type: "linkedin",
+                notification_email: formData.recruiter.apply_method.notification_email,
+                resume_required: formData.recruiter.apply_method.resume_required,
+              }
+            : {
+                type: "external",
+                url: formData.recruiter.apply_method.url,
+              },
+          include_poster_info: formData.recruiter.include_poster_info,
+          ...(formData.recruiter.tracking_pixel_url && { tracking_pixel_url: formData.recruiter.tracking_pixel_url }),
+          ...(formData.recruiter.company_job_id && { company_job_id: formData.recruiter.company_job_id }),
+          auto_archive_applicants: formData.recruiter.auto_archive_applicants,
+          send_rejection_notification: formData.recruiter.send_rejection_notification,
+        },
+      };
 
-    console.log("Payload para API:", payload);
-    
-    // Aqui seria a chamada à API
-    // await createJobPosting(payload);
-    
-    navigate("/vagas");
+      console.log("📤 Enviando payload para API:", payload);
+      
+      // CHAMADA À API DO BACKEND
+      const response = await fetch('http://localhost:3001/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Erro ao criar vaga');
+      }
+
+      // SUCESSO
+      console.log("✅ Vaga criada com sucesso:", result);
+      
+      toast({
+        title: "✅ Vaga publicada!",
+        description: result.message || "A vaga foi criada e publicada no LinkedIn com sucesso.",
+        variant: "default",
+      });
+      
+      // Redirecionar após 1 segundo para dar tempo de ver o toast
+      setTimeout(() => {
+        navigate("/vagas");
+      }, 1000);
+
+    } catch (error) {
+      // ERRO
+      console.error("❌ Erro ao criar vaga:", error);
+      
+      toast({
+        title: "❌ Erro ao criar vaga",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao publicar a vaga. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (path: string, value: any) => {
@@ -803,12 +845,26 @@ export default function JobForm() {
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-6">
-          <Button type="button" variant="outline" onClick={() => navigate("/vagas")}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => navigate("/vagas")}
+            disabled={isSubmitting}
+          >
             Cancelar
           </Button>
-          <Button type="submit">
-            <Save className="mr-2 h-4 w-4" />
-            {isEditing ? "Salvar Alterações" : "Criar Vaga no LinkedIn"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Publicando no LinkedIn...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {isEditing ? "Salvar Alterações" : "Criar Vaga no LinkedIn"}
+              </>
+            )}
           </Button>
         </div>
       </form>

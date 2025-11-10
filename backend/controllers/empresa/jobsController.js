@@ -1,4 +1,6 @@
 import jobsRepository from '../../repositories/empresa/jobsRepository.js';
+import empresaRepository from '../../repositories/empresa/empresaRepository.js';
+import { unipileService } from '../../services/unipileService.js';
 
 class JobsController {
   async getAllJobs(req, res) {
@@ -17,6 +19,8 @@ class JobsController {
   async createJob(req, res) {
     try {
       const payload = req.body;
+      // TODO: Pegar empresaId do token JWT quando tiver autenticação
+      const empresaId = req.query.empresaId || req.body.empresaId || 'temp-empresa-id';
 
       // Validação dos campos obrigatórios
       const validationError = this.validateJobPayload(payload);
@@ -27,15 +31,91 @@ class JobsController {
       // Preparar dados para inserção no banco
       const jobData = this.prepareJobData(payload);
 
-      // Inserir no banco de dados
+      // PASSO 1: Salvar no banco de dados local
+      console.log('💾 [BACKEND] Salvando vaga no banco de dados...');
       const job = await jobsRepository.create(jobData);
+      console.log('✅ [BACKEND] Vaga salva no banco:', job.id);
+
+      // PASSO 2: Publicar no LinkedIn via Unipile
+      let unipileJobId = null;
+      let linkedinUrl = null;
+      let status = 'syncing';
+      let errorMessage = null;
+
+      // Busca dados da empresa para obter o account_id
+      let empresa = null;
+      try {
+        empresa = await empresaRepository.findById(empresaId);
+      } catch (error) {
+        console.warn('⚠️  [BACKEND] Empresa não encontrada, criando temporariamente para teste');
+        // Cria empresa temporária para teste
+        empresa = await empresaRepository.create({
+          id: empresaId,
+          nome: 'Empresa Teste',
+          email: `empresa-${empresaId}@teste.com`
+        });
+      }
+
+      // Verifica se empresa tem LinkedIn conectado
+      if (process.env.UNIPILE_API_KEY && empresa.unipileAccountId) {
+        try {
+          console.log('🚀 [BACKEND] Publicando vaga no LinkedIn via Unipile...');
+          console.log('🏢 [BACKEND] Usando Account ID da empresa:', empresa.unipileAccountId);
+          
+          // Criar rascunho usando o account_id da empresa
+          const draftResponse = await unipileService.createJobPosting(jobData, empresa.unipileAccountId);
+          unipileJobId = draftResponse.id;
+          
+          console.log('📝 [BACKEND] Rascunho criado no Unipile:', unipileJobId);
+
+          // Publicar rascunho
+          const publishResponse = await unipileService.publishJobPosting(unipileJobId);
+          linkedinUrl = publishResponse.url || null;
+          status = 'active';
+
+          console.log('✅ [BACKEND] Vaga publicada no LinkedIn com sucesso!');
+          if (linkedinUrl) {
+            console.log('🔗 [BACKEND] URL do LinkedIn:', linkedinUrl);
+          }
+
+        } catch (unipileError) {
+          console.error('❌ [BACKEND] Erro ao publicar no LinkedIn:', unipileError.message);
+          status = 'error';
+          errorMessage = unipileError.message;
+        }
+
+        // Atualizar registro no banco com dados do Unipile
+        await jobsRepository.update(job.id, {
+          unipileId: unipileJobId,
+          linkedinUrl: linkedinUrl,
+          status: status,
+          errorMessage: errorMessage
+        });
+      } else {
+        if (!process.env.UNIPILE_API_KEY) {
+          console.warn('⚠️  [BACKEND] Credenciais Unipile não configuradas no .env');
+        } else if (!empresa.unipileAccountId) {
+          console.warn('⚠️  [BACKEND] Empresa não tem LinkedIn conectado. Use: /empresa/linkedin/connect');
+        }
+        console.warn('⚠️  [BACKEND] Vaga salva apenas localmente como rascunho.');
+        await jobsRepository.update(job.id, { status: 'draft' });
+        status = 'draft';
+      }
+
+      // Buscar vaga atualizada
+      const updatedJob = await jobsRepository.findById(job.id);
 
       res.status(201).json({ 
-        message: 'Vaga criada com sucesso',
-        data: job 
+        message: status === 'active' 
+          ? 'Vaga criada e publicada no LinkedIn com sucesso!' 
+          : status === 'error'
+          ? 'Vaga criada localmente, mas houve erro ao publicar no LinkedIn'
+          : 'Vaga criada localmente (Unipile não configurado)',
+        data: updatedJob
       });
+
     } catch (error) {
-      console.error('Erro ao criar vaga:', error);
+      console.error('❌ [BACKEND] Erro ao criar vaga:', error);
       res.status(500).json({ 
         error: 'Erro ao criar vaga',
         details: error.message 
