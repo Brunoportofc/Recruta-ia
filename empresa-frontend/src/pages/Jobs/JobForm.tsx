@@ -50,12 +50,7 @@ export default function JobForm() {
       functions: [] as string[],
       industries: [] as string[],
       seniority: "" as "INTERNSHIP" | "ENTRY_LEVEL" | "ASSOCIATE" | "MID_SENIOR_LEVEL" | "DIRECTOR" | "EXECUTIVE" | "NOT_APPLICABLE" | "",
-      apply_method: {
-        type: "linkedin" as "linkedin" | "external",
-        notification_email: "",
-        resume_required: true,
-        url: "",
-      },
+      apply_url: "",
       include_poster_info: true,
       tracking_pixel_url: "",
       company_job_id: "",
@@ -65,17 +60,23 @@ export default function JobForm() {
       },
       send_rejection_notification: true,
     },
+    // Configuração da Vaga (UI separada)
+    job_config: {
+      tests: {
+        test1: false,
+        test2: false,
+        test3: false,
+        test4: false,
+      },
+      interviews_count: 1, // 1..20
+      active_days: 30, // número de dias que a vaga ficará ativa
+    },
     
-    screening_questions: [] as ScreeningQuestion[],
+  // screening_questions removed because candidaturas serão feitas via link externo
   });
 
-  const [newQuestion, setNewQuestion] = useState<ScreeningQuestion>({
-    question: "",
-    must_match: false,
-    answer_type: "multiple_choices",
-    choices: [],
-    expected_choices: [],
-  });
+  // screening questions removed from UI (handled via external form)
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,27 +92,27 @@ export default function JobForm() {
         description: formData.description,
         ...(formData.employment_status && { employment_status: formData.employment_status }),
         ...(formData.auto_rejection_template && { auto_rejection_template: formData.auto_rejection_template }),
-        ...(formData.screening_questions.length > 0 && { screening_questions: formData.screening_questions }),
+  // screening handled via external apply_url; removed from payload
         recruiter: {
           project: formData.recruiter.project.name ? { name: formData.recruiter.project.name } : { id: formData.recruiter.project.name },
           functions: formData.recruiter.functions,
           industries: formData.recruiter.industries,
           seniority: formData.recruiter.seniority,
-          apply_method: formData.recruiter.apply_method.type === "linkedin"
-            ? {
-                type: "linkedin",
-                notification_email: formData.recruiter.apply_method.notification_email,
-                resume_required: formData.recruiter.apply_method.resume_required,
-              }
-            : {
-                type: "external",
-                url: formData.recruiter.apply_method.url,
-              },
+          apply_method: {
+            type: "external",
+            url: formData.recruiter.apply_url,
+          },
           include_poster_info: formData.recruiter.include_poster_info,
           ...(formData.recruiter.tracking_pixel_url && { tracking_pixel_url: formData.recruiter.tracking_pixel_url }),
           ...(formData.recruiter.company_job_id && { company_job_id: formData.recruiter.company_job_id }),
           auto_archive_applicants: formData.recruiter.auto_archive_applicants,
           send_rejection_notification: formData.recruiter.send_rejection_notification,
+        },
+        // job configuration (tests, interviews and active period)
+        job_config: {
+          tests: formData.job_config.tests,
+          interviews_count: formData.job_config.interviews_count,
+          active_days: formData.job_config.active_days,
         },
       };
 
@@ -223,30 +224,7 @@ export default function JobForm() {
       return newData;
     });
   };
-
-  const addScreeningQuestion = () => {
-    if (!newQuestion.question) return;
-    
-    setFormData((prev) => ({
-      ...prev,
-      screening_questions: [...prev.screening_questions, { ...newQuestion }],
-    }));
-    
-    setNewQuestion({
-      question: "",
-      must_match: false,
-      answer_type: "multiple_choices",
-      choices: [],
-      expected_choices: [],
-    });
-  };
-
-  const removeScreeningQuestion = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      screening_questions: prev.screening_questions.filter((_, i) => i !== index),
-    }));
-  };
+  
 
   return (
     <div className="space-y-6">
@@ -264,13 +242,11 @@ export default function JobForm() {
 
       <form onSubmit={handleSubmit}>
         <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
-            <TabsTrigger value="recruiter">Recrutamento</TabsTrigger>
-            <TabsTrigger value="screening">Triagem</TabsTrigger>
-            <TabsTrigger value="advanced">Avançado</TabsTrigger>
-            <TabsTrigger value="rejection">Rejeição</TabsTrigger>
-          </TabsList>
+          <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
+              <TabsTrigger value="recruiter">Recrutamento</TabsTrigger>
+              <TabsTrigger value="config">Configuração</TabsTrigger>
+            </TabsList>
 
           {/* Informações Básicas */}
           <TabsContent value="basic" className="space-y-6">
@@ -406,30 +382,43 @@ export default function JobForm() {
 
           {/* Configurações de Recrutamento */}
           <TabsContent value="recruiter" className="space-y-6">
+            {/* Seção 1: Projeto */}
             <Card>
               <CardHeader>
-                <CardTitle>Configurações de Recrutamento</CardTitle>
-                <CardDescription>Informações sobre o recrutador e projeto</CardDescription>
+                <CardTitle className="text-lg">📋 Projeto</CardTitle>
+                <CardDescription>Defina ou crie um novo projeto para este recrutamento</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="project_name">Nome do Projeto *</Label>
+                  <p className="text-xs text-muted-foreground">ID de um projeto existente OU nome de um novo projeto</p>
                   <Input
                     id="project_name"
-                    placeholder="Nome do projeto"
+                    placeholder="Ex: Campanha 2025 ou ID_existente"
                     value={formData.recruiter.project.name}
                     onChange={(e) => handleChange("recruiter.project.name", e.target.value)}
                     required
                   />
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-2">
+            {/* Seção 2: Funções e Indústrias */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">🎯 Função e Indústria</CardTitle>
+                <CardDescription>Selecione até 3 funções e indústrias para categorizar a vaga</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
                   <Label>Funções (Job Functions) *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Selecione 1 a 3 funções (use IDs, ex: "engineering")</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use IDs do LinkedIn (ex: "engineering", "sales", "marketing"). Máximo 3. Use a rota "List search parameters" com type=JOB_FUNCTION para obter IDs válidos.
+                  </p>
                   {formData.recruiter.functions.map((func, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
+                    <div key={index} className="flex gap-2">
                       <Input
-                        placeholder={`Função ${index + 1}`}
+                        placeholder={`Função ${index + 1} (ID)`}
                         value={func}
                         onChange={(e) => handleArrayChange("recruiter.functions", index, e.target.value)}
                       />
@@ -456,13 +445,17 @@ export default function JobForm() {
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <Separator />
+
+                <div className="space-y-3">
                   <Label>Indústrias *</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Selecione 1 a 3 indústrias (use IDs numéricos)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use IDs de indústrias do LinkedIn. Máximo 3. Use a rota "List search parameters" com type=INDUSTRY para obter IDs válidos.
+                  </p>
                   {formData.recruiter.industries.map((industry, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
+                    <div key={index} className="flex gap-2">
                       <Input
-                        placeholder={`Indústria ${index + 1} (ID)`}
+                        placeholder={`Indústria ${index + 1} (ID numérico)`}
                         value={industry}
                         onChange={(e) => handleArrayChange("recruiter.industries", index, e.target.value)}
                       />
@@ -488,7 +481,16 @@ export default function JobForm() {
                     </Button>
                   )}
                 </div>
+              </CardContent>
+            </Card>
 
+            {/* Seção 3: Senioridade */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">📊 Nível de Senioridade</CardTitle>
+                <CardDescription>Defina o nível esperado para as vagas</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="seniority">Senioridade *</Label>
                   <Select
@@ -497,351 +499,166 @@ export default function JobForm() {
                     required
                   >
                     <SelectTrigger id="seniority">
-                      <SelectValue placeholder="Selecione" />
+                      <SelectValue placeholder="Selecione o nível" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="INTERNSHIP">Estágio</SelectItem>
-                      <SelectItem value="ENTRY_LEVEL">Iniciante</SelectItem>
-                      <SelectItem value="ASSOCIATE">Associado</SelectItem>
-                      <SelectItem value="MID_SENIOR_LEVEL">Pleno/Sênior</SelectItem>
-                      <SelectItem value="DIRECTOR">Diretor</SelectItem>
-                      <SelectItem value="EXECUTIVE">Executivo</SelectItem>
-                      <SelectItem value="NOT_APPLICABLE">Não Aplicável</SelectItem>
+                      <SelectItem value="INTERNSHIP">🎓 Estágio</SelectItem>
+                      <SelectItem value="ENTRY_LEVEL">🚀 Iniciante</SelectItem>
+                      <SelectItem value="ASSOCIATE">👤 Associado</SelectItem>
+                      <SelectItem value="MID_SENIOR_LEVEL">⭐ Pleno/Sênior</SelectItem>
+                      <SelectItem value="DIRECTOR">🎯 Diretor</SelectItem>
+                      <SelectItem value="EXECUTIVE">👔 Executivo</SelectItem>
+                      <SelectItem value="NOT_APPLICABLE">❓ Não Aplicável</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </CardContent>
+            </Card>
 
-                <Separator />
-
-                <div className="space-y-4">
-                  <Label>Método de Candidatura *</Label>
-                  
-                  <div className="space-y-2">
-                    <Label>Tipo</Label>
-                    <Select
-                      value={formData.recruiter.apply_method.type}
-                      onValueChange={(value) => handleChange("recruiter.apply_method.type", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="linkedin">Dentro do LinkedIn</SelectItem>
-                        <SelectItem value="external">Site Externo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.recruiter.apply_method.type === "linkedin" ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="notification_email">E-mail de Notificação *</Label>
-                        <Input
-                          id="notification_email"
-                          type="email"
-                          placeholder="email@exemplo.com"
-                          value={formData.recruiter.apply_method.notification_email}
-                          onChange={(e) => handleChange("recruiter.apply_method.notification_email", e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="resume_required"
-                          checked={formData.recruiter.apply_method.resume_required}
-                          onCheckedChange={(checked) => handleChange("recruiter.apply_method.resume_required", checked)}
-                        />
-                        <Label htmlFor="resume_required">Currículo Obrigatório</Label>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="external_url">URL Externa *</Label>
-                      <Input
-                        id="external_url"
-                        type="url"
-                        placeholder="https://exemplo.com/candidaturas"
-                        value={formData.recruiter.apply_method.url}
-                        onChange={(e) => handleChange("recruiter.apply_method.url", e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
+            
+            {/* Seção 5: Rastreamento e Visibilidade */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">👁️ Visibilidade e Rastreamento</CardTitle>
+                <CardDescription>Configure visibilidade do recrutador e rastreamento de impressões</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                  <Label htmlFor="include_poster_info" className="cursor-pointer">Mostrar informações do recrutador no post</Label>
+                  <Switch
+                    id="include_poster_info"
+                    checked={formData.recruiter.include_poster_info}
+                    onCheckedChange={(checked) => handleChange("recruiter.include_poster_info", checked)}
+                  />
                 </div>
 
                 <Separator />
 
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="include_poster_info"
-                      checked={formData.recruiter.include_poster_info}
-                      onCheckedChange={(checked) => handleChange("recruiter.include_poster_info", checked)}
-                    />
-                    <Label htmlFor="include_poster_info">Mostrar informações do recrutador no post</Label>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tracking_pixel_url">URL de Pixel de Rastreamento</Label>
-                    <Input
-                      id="tracking_pixel_url"
-                      type="url"
-                      placeholder="https://exemplo.com/pixel"
-                      value={formData.recruiter.tracking_pixel_url}
-                      onChange={(e) => handleChange("recruiter.tracking_pixel_url", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="company_job_id">ID da Vaga na Empresa</Label>
-                    <Input
-                      id="company_job_id"
-                      placeholder="ID interno da empresa"
-                      value={formData.recruiter.company_job_id}
-                      onChange={(e) => handleChange("recruiter.company_job_id", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Perguntas de Triagem */}
-          <TabsContent value="screening" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Perguntas de Triagem</CardTitle>
-                <CardDescription>Adicione perguntas para filtrar candidatos automaticamente</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {formData.screening_questions.map((question, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="flex items-start justify-between mb-4">
-                      <h4 className="font-medium">Pergunta {index + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeScreeningQuestion(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Pergunta</Label>
-                        <Input value={question.question} readOnly />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Label>Exigir correspondência exata</Label>
-                        <Switch checked={question.must_match} disabled />
-                      </div>
-                      {question.answer_type === "numeric" && (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Valor Mínimo</Label>
-                            <Input type="number" value={question.min_expectation} readOnly />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Valor Máximo</Label>
-                            <Input type="number" value={question.max_expectation} readOnly />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-
-                <Separator />
-
-                <Card className="p-4 bg-muted/50">
-                  <h4 className="font-medium mb-4">Adicionar Nova Pergunta</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Pergunta *</Label>
-                      <Input
-                        placeholder="Ex: Quantos anos de experiência você tem?"
-                        value={newQuestion.question}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Tipo de Resposta *</Label>
-                      <Select
-                        value={newQuestion.answer_type}
-                        onValueChange={(value) => setNewQuestion({ ...newQuestion, answer_type: value as "numeric" | "multiple_choices" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="numeric">Numérica</SelectItem>
-                          <SelectItem value="multiple_choices">Múltipla Escolha</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {newQuestion.answer_type === "numeric" ? (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Valor Mínimo</Label>
-                          <Input
-                            type="number"
-                            value={newQuestion.min_expectation || ""}
-                            onChange={(e) => setNewQuestion({ ...newQuestion, min_expectation: Number(e.target.value) })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Valor Máximo</Label>
-                          <Input
-                            type="number"
-                            value={newQuestion.max_expectation || ""}
-                            onChange={(e) => setNewQuestion({ ...newQuestion, max_expectation: Number(e.target.value) })}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label>Opções de Resposta</Label>
-                        <p className="text-xs text-muted-foreground mb-2">Adicione as opções disponíveis</p>
-                        {newQuestion.choices?.map((choice, idx) => (
-                          <div key={idx} className="flex gap-2 mb-2">
-                            <Input
-                              value={choice}
-                              onChange={(e) => {
-                                const newChoices = [...(newQuestion.choices || [])];
-                                newChoices[idx] = e.target.value;
-                                setNewQuestion({ ...newQuestion, choices: newChoices });
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                const newChoices = [...(newQuestion.choices || [])];
-                                newChoices.splice(idx, 1);
-                                setNewQuestion({ ...newQuestion, choices: newChoices });
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setNewQuestion({ ...newQuestion, choices: [...(newQuestion.choices || []), ""] })}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Adicionar Opção
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={newQuestion.must_match}
-                        onCheckedChange={(checked) => setNewQuestion({ ...newQuestion, must_match: checked })}
-                      />
-                      <Label>Exigir correspondência exata</Label>
-                    </div>
-
-                    <Button type="button" onClick={addScreeningQuestion} disabled={!newQuestion.question}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar Pergunta
-                    </Button>
-                  </div>
-                </Card>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Configurações Avançadas */}
-          <TabsContent value="advanced" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configurações Avançadas</CardTitle>
-                <CardDescription>Arquivamento automático de candidatos</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Arquivar automaticamente candidatos que não atendem perguntas obrigatórias</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Candidatos que não respondem corretamente às perguntas marcadas como obrigatórias serão arquivados automaticamente
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.recruiter.auto_archive_applicants.screening_questions}
-                      onCheckedChange={(checked) =>
-                        handleChange("recruiter.auto_archive_applicants.screening_questions", checked)
-                      }
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Arquivar automaticamente candidatos fora do país</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Candidatos que estão fora do país da vaga serão arquivados automaticamente
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.recruiter.auto_archive_applicants.outside_of_country}
-                      onCheckedChange={(checked) =>
-                        handleChange("recruiter.auto_archive_applicants.outside_of_country", checked)
-                      }
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Enviar notificação de rejeição</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Enviar notificações automáticas para candidatos rejeitados
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formData.recruiter.send_rejection_notification}
-                      onCheckedChange={(checked) => handleChange("recruiter.send_rejection_notification", checked)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Template de Rejeição */}
-          <TabsContent value="rejection" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Template de Rejeição Automática</CardTitle>
-                <CardDescription>
-                  Defina uma mensagem que será enviada automaticamente para candidatos que não passam nas perguntas de triagem
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="auto_rejection_template">Mensagem de Rejeição</Label>
-                  <Textarea
-                    id="auto_rejection_template"
-                    placeholder="Agradecemos seu interesse, mas infelizmente você não atende aos requisitos mínimos para esta posição..."
-                    value={formData.auto_rejection_template}
-                    onChange={(e) => handleChange("auto_rejection_template", e.target.value)}
-                    rows={6}
+                  <Label htmlFor="tracking_pixel_url">URL de Pixel de Rastreamento</Label>
+                  <p className="text-xs text-muted-foreground">URL para rastrear impressões da vaga</p>
+                  <Input
+                    id="tracking_pixel_url"
+                    type="url"
+                    placeholder="https://exemplo.com/pixel"
+                    value={formData.recruiter.tracking_pixel_url}
+                    onChange={(e) => handleChange("recruiter.tracking_pixel_url", e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company_job_id">ID da Vaga na Empresa</Label>
+                  <p className="text-xs text-muted-foreground">ID interno da empresa para rastreamento de candidaturas</p>
+                  <Input
+                    id="company_job_id"
+                    placeholder="ID interno da empresa"
+                    value={formData.recruiter.company_job_id}
+                    onChange={(e) => handleChange("recruiter.company_job_id", e.target.value)}
                   />
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
+
+              {/* Configuração da Vaga */}
+              <TabsContent value="config" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Configuração da Vaga</CardTitle>
+                    <CardDescription>Ative testes, defina número de entrevistas e duração da vaga</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      <Label>Testes</Label>
+                      <p className="text-xs text-muted-foreground">Ative os testes que o candidato deverá realizar</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div>
+                            <Label className="mb-0">Teste 1</Label>
+                            <p className="text-xs text-muted-foreground">Ex: Avaliação técnica inicial</p>
+                          </div>
+                          <Switch
+                            checked={formData.job_config.tests.test1}
+                            onCheckedChange={(checked) => handleChange('job_config.tests.test1', checked)}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div>
+                            <Label className="mb-0">Teste 2</Label>
+                            <p className="text-xs text-muted-foreground">Ex: Teste comportamental</p>
+                          </div>
+                          <Switch
+                            checked={formData.job_config.tests.test2}
+                            onCheckedChange={(checked) => handleChange('job_config.tests.test2', checked)}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div>
+                            <Label className="mb-0">Teste 3</Label>
+                            <p className="text-xs text-muted-foreground">Ex: Projeto prático</p>
+                          </div>
+                          <Switch
+                            checked={formData.job_config.tests.test3}
+                            onCheckedChange={(checked) => handleChange('job_config.tests.test3', checked)}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                          <div>
+                            <Label className="mb-0">Teste 4</Label>
+                            <p className="text-xs text-muted-foreground">Ex: Entrevista técnica ao vivo</p>
+                          </div>
+                          <Switch
+                            checked={formData.job_config.tests.test4}
+                            onCheckedChange={(checked) => handleChange('job_config.tests.test4', checked)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <Label>Quantas entrevistas deseja agendar?</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Use o controle abaixo para escolher entre 1 e 20 entrevistas</p>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min={1}
+                          max={20}
+                          value={formData.job_config.interviews_count}
+                          onChange={(e) => handleChange('job_config.interviews_count', Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="w-16 text-right">
+                          <span className="font-medium">{formData.job_config.interviews_count}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <Label htmlFor="active_days">Tempo que a vaga ficará ativa (dias)</Label>
+                      <Input
+                        id="active_days"
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={formData.job_config.active_days}
+                        onChange={(e) => handleChange('job_config.active_days', Number(e.target.value))}
+                      />
+                      <p className="text-xs text-muted-foreground">Número de dias a partir da publicação</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* screening, advanced and rejection tabs removed - candidaturas serão por link externo */}
+
+          {/* Abas de triagem/avançado/rejeição removidas (candidaturas via link externo) */}
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-6">
