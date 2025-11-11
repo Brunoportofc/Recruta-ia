@@ -26,15 +26,15 @@ class EmpresaRepository {
     }
   }
 
-  async findByUnipileAccountId(unipileAccountId) {
+  async findByCNPJ(cnpj) {
     try {
       const empresa = await prisma.empresa.findUnique({
-        where: { unipileAccountId }
+        where: { cnpj }
       });
       
       return empresa;
     } catch (error) {
-      throw new Error(`Erro ao buscar empresa por Unipile Account ID: ${error.message}`);
+      throw new Error(`Erro ao buscar empresa por CNPJ: ${error.message}`);
     }
   }
 

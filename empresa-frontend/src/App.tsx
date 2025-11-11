@@ -16,6 +16,7 @@ import Tests from "./pages/Tests";
 import Settings from "./pages/Settings";
 import LinkedInCallback from "./pages/LinkedInCallback";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const AppRoutes = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/cadastro" element={<Register />} />
       <Route
         path="/"
         element={
