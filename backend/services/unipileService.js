@@ -15,12 +15,6 @@ class UnipileService {
     }
   }
 
-  /**
-   * Cria um rascunho de vaga no LinkedIn via Unipile
-   * @param {Object} jobData - Dados da vaga preparados
-   * @param {string} accountId - Account ID da empresa (opcional, usa o padrão se não fornecido)
-   * @returns {Promise<Object>} Resposta da API com o ID do rascunho
-   */
   async createJobPosting(jobData, accountId = null) {
     try {
       const finalAccountId = accountId || this.accountId;
