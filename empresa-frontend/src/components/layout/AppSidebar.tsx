@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, Users, Brain, FileText, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Briefcase, Brain, FileText, Settings, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -17,7 +17,6 @@ import { useAuth } from "@/contexts/AuthContext";
 const navigation = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Vagas", url: "/vagas", icon: Briefcase },
-  { title: "Candidaturas", url: "/candidaturas", icon: Users },
   { title: "IA / Ranqueamento", url: "/ia", icon: Brain },
   { title: "Testes Psicológicos", url: "/testes", icon: FileText },
   { title: "Configurações", url: "/configuracoes", icon: Settings },

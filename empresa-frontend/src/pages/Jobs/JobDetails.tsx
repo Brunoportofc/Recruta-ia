@@ -139,10 +139,10 @@ export default function JobDetails() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Ações Rápidas</CardTitle>
+             
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button className="w-full" variant="outline" onClick={() => navigate(`/candidaturas?job=${job.id}`)}>
+              <Button className="w-full" variant="outline" onClick={() => navigate(`/candidaturas?job=${id ?? job.id}`)}>
                 Ver Candidatos
               </Button>
               <Button className="w-full" variant="outline">

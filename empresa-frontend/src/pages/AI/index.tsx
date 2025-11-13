@@ -53,9 +53,9 @@ export default function AIAnalysis() {
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {mockAnalyses.map((analysis) => (
-          <Card key={analysis.id}>
+          <Card key={analysis.id} className="aspect-square flex flex-col overflow-hidden">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
@@ -67,7 +67,7 @@ export default function AIAnalysis() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1 overflow-auto">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" />

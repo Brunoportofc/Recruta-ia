@@ -18,9 +18,11 @@ export default function Login() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     setError("");
     setIsLoading(true);
+  
 
     try {
       const success = await login(email, password);
@@ -38,6 +40,7 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
+    
   };
 
   return (
