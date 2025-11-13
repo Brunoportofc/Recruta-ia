@@ -26,6 +26,56 @@ const statusConfig = {
   draft: { label: "Rascunho", variant: "secondary" as const },
 };
 
+// Mock data for jobs
+const mockJobs: Job[] = [
+  {
+    id: "1",
+    jobTitle: "Desenvolvedor Frontend",
+    description: "Desenvolvimento de interfaces web utilizando React.",
+    status: "active",
+    workplace: "REMOTE",
+    company: "TechCorp",
+    createdAt: "2025-11-01T10:00:00Z",
+    linkedinUrl: "https://linkedin.com/job1",
+  },
+  {
+    id: "2",
+    jobTitle: "Analista de Dados",
+    description: "Análise de dados e criação de dashboards.",
+    status: "closed",
+    workplace: "HYBRID",
+    company: "DataSolutions",
+    createdAt: "2025-10-15T10:00:00Z",
+  },
+  {
+    id: "3",
+    jobTitle: "Gerente de Projetos",
+    description: "Gestão de projetos ágeis e equipes multidisciplinares.",
+    status: "draft",
+    workplace: "ON_SITE",
+    company: "ProjectMasters",
+    createdAt: "2025-09-20T10:00:00Z",
+  },
+  {
+    id: "4",
+    jobTitle: "Designer UX/UI",
+    description: "Criação de experiências de usuário e interfaces visuais.",
+    status: "syncing",
+    workplace: "REMOTE",
+    company: "CreativeStudio",
+    createdAt: "2025-11-05T10:00:00Z",
+  },
+  {
+    id: "5",
+    jobTitle: "Especialista em Segurança da Informação",
+    description: "Garantir a segurança dos sistemas e dados da empresa.",
+    status: "error",
+    workplace: "HYBRID",
+    company: "SecureIT",
+    createdAt: "2025-10-25T10:00:00Z",
+  },
+];
+
 export default function JobsList() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,7 +84,9 @@ export default function JobsList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    loadJobs();
+    // loadJobs();
+    setJobs(mockJobs);
+    setIsLoading(false);
   }, []);
 
   const loadJobs = async () => {
