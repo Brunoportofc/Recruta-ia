@@ -1,31 +1,75 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { testeComportamentalService, Questao, RespostaTeste } from '@/services/testeComportamentalService';
+import { candidaturaService } from '@/services/candidaturaService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function TesteComportamental() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const { user } = useAuth();
   const curriculoData = location.state?.curriculoData;
+  // Tenta pegar o vagaId: 1) URL, 2) state, 3) localStorage
+  const vagaId = searchParams.get('vaga') || location.state?.vagaId || localStorage.getItem('candidatura_vaga_id');
 
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [questaoAtual, setQuestaoAtual] = useState(0);
   const [respostas, setRespostas] = useState<Map<number, number>>(new Map());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testesAtivos, setTestesAtivos] = useState<string[]>([]);
 
   useEffect(() => {
     console.log('🎯 [TESTE] Inicializando página de testes...');
     console.log('🎯 [TESTE] curriculoData do state:', curriculoData ? 'PRESENTE' : 'AUSENTE');
+    console.log('🎯 [TESTE] vagaId da URL:', searchParams.get('vaga'));
+    console.log('🎯 [TESTE] vagaId do state:', location.state?.vagaId);
+    console.log('🎯 [TESTE] vagaId do localStorage:', localStorage.getItem('candidatura_vaga_id'));
+    console.log('🎯 [TESTE] vagaId FINAL:', vagaId || 'NENHUMA');
     
-    // Carrega as questões (não precisa mais do curriculoData para isso)
-    const questoesCarregadas = testeComportamentalService.getQuestoes();
+    // Se houver vaga vinculada, busca configuração da vaga
+    if (vagaId) {
+      // TODO: Buscar configuração real da API
+      // Por enquanto, mock
+      const mockConfiguracao = {
+        tests: {
+          test1: true,
+          test2: true,
+          test3: false,
+          test4: false
+        }
+      };
+      
+      const ativos = Object.entries(mockConfiguracao.tests)
+        .filter(([_, ativo]) => ativo)
+        .map(([teste]) => teste);
+      
+      setTestesAtivos(ativos);
+      console.log('✅ [TESTE] Testes ativos para esta vaga:', ativos);
+    }
+    
+    // Carrega as questões (filtra se houver configuração de vaga)
+    let questoesCarregadas = testeComportamentalService.getQuestoes();
+    
+    // Se houver vaga e configuração de testes, filtra as questões
+    if (vagaId && testesAtivos.length > 0) {
+      const questoesPorTeste = questoesCarregadas.length / 4; // Assume 4 testes iguais
+      questoesCarregadas = questoesCarregadas.filter((q, index) => {
+        const testeIndex = Math.floor(index / questoesPorTeste);
+        return testesAtivos.includes(`test${testeIndex + 1}`);
+      });
+      console.log(`✅ [TESTE] Questões filtradas: ${questoesCarregadas.length} de ${testeComportamentalService.getQuestoes().length}`);
+    }
+    
     setQuestoes(questoesCarregadas);
-    
     console.log('✅ [TESTE] Questões carregadas:', questoesCarregadas.length);
-  }, []);
+  }, [vagaId, testesAtivos.length]);
 
   const questao = questoes[questaoAtual];
   const respostaSelecionada = respostas.get(questao?.id);
@@ -78,18 +122,92 @@ export default function TesteComportamental() {
       await testeComportamentalService.salvarRespostas(respostasArray);
       
       console.log('✅ [TESTE PAGE] Teste finalizado com sucesso!');
+      
+      // DEBUG: Verificar variáveis
+      console.log('🔍 [TESTE PAGE DEBUG] vagaId:', vagaId);
+      console.log('🔍 [TESTE PAGE DEBUG] user:', user);
+      console.log('🔍 [TESTE PAGE DEBUG] curriculoData:', curriculoData);
+      console.log('🔍 [TESTE PAGE DEBUG] Condição:', { 
+        temVagaId: !!vagaId, 
+        temUser: !!user, 
+        temCurriculo: !!curriculoData 
+      });
+      
+      // Se houver vaga vinculada, salva a candidatura
+      if (vagaId && user && curriculoData) {
+        console.log('📝 [TESTE PAGE] Salvando candidatura para vaga:', vagaId);
+        
+        try {
+          // Usa o currículo que veio do formulário (curriculoData)
+          console.log('📋 [TESTE PAGE] Usando currículo do state (já preenchido no formulário)');
+
+          // Cria a candidatura com currículo completo + testes
+          await candidaturaService.criarCandidatura({
+            candidatoId: user.id,
+            vagaId: vagaId,
+            curriculoSnapshot: {
+              // Dados pessoais
+              nomeCompleto: curriculoData.nomeCompleto,
+              email: curriculoData.email,
+              telefone: curriculoData.telefone,
+              cidade: curriculoData.cidade,
+              estado: curriculoData.estado,
+              linkedinUrl: curriculoData.linkedinUrl,
+              objetivoProfissional: curriculoData.objetivoProfissional,
+              
+              // Dados completos do currículo
+              experiencias: curriculoData.experiencias,
+              formacoes: curriculoData.formacoes,
+              habilidades: curriculoData.habilidades,
+              idiomas: curriculoData.idiomas,
+              certificacoes: curriculoData.certificacoes
+            },
+            testeResultado: {
+              respostas: respostasArray,
+              dataRealizacao: new Date().toISOString(),
+              totalQuestoes: questoes.length
+            }
+          });
+
+          console.log('✅ [TESTE PAGE] Candidatura salva com sucesso!');
+          
+          toast({
+            title: '✅ Candidatura enviada!',
+            description: 'Sua candidatura foi enviada com sucesso. A empresa receberá uma notificação.',
+          });
+          
+          // Limpa o ID da vaga do localStorage
+          localStorage.removeItem('candidatura_vaga_id');
+        } catch (candidaturaError) {
+          console.error('❌ [TESTE PAGE] Erro ao salvar candidatura:', candidaturaError);
+          // Não bloqueia o fluxo, mas mostra erro
+          toast({
+            title: 'Aviso',
+            description: 'Teste salvo, mas houve erro ao enviar candidatura. Tente novamente mais tarde.',
+            variant: 'destructive'
+          });
+        }
+      }
+      
       console.log('🚀 [TESTE PAGE] Redirecionando para área do candidato...');
 
       // Redireciona para área do candidato SEM mostrar o resultado
       navigate('/area-candidato', {
         state: { 
           testeConcluido: true,
-          mensagem: 'Teste comportamental concluído com sucesso! Seu perfil está sendo analisado.'
+          candidaturaEnviada: !!vagaId,
+          mensagem: vagaId 
+            ? 'Candidatura enviada com sucesso! A empresa foi notificada e em breve entrará em contato.' 
+            : 'Teste comportamental concluído com sucesso! Seu perfil está sendo analisado.'
         }
       });
     } catch (error) {
       console.error('❌ [TESTE PAGE] Erro ao finalizar teste:', error);
-      alert('Erro ao processar suas respostas. Tente novamente.');
+      toast({
+        title: 'Erro',
+        description: 'Erro ao processar suas respostas. Tente novamente.',
+        variant: 'destructive'
+      });
     } finally {
       setIsSubmitting(false);
     }

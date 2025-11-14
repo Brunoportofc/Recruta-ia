@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService, LinkedInResumeData } from '@/services/authService';
 import { curriculoService } from '@/services/curriculoService';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MonthYearPicker } from '@/components/ui/month-year-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Trash2, ChevronRight, AlertCircle, Linkedin, Save } from 'lucide-react';
 
@@ -48,9 +49,12 @@ interface CurriculoData {
 
 export default function FormularioCurriculo() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Tenta pegar o vagaId da URL ou do localStorage
+  const vagaId = searchParams.get('vaga') || localStorage.getItem('candidatura_vaga_id');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<CurriculoData | null>(null);
@@ -59,6 +63,8 @@ export default function FormularioCurriculo() {
   const [dataSource, setDataSource] = useState<'linkedin' | 'manual' | 'database'>('manual');
 
   useEffect(() => {
+    console.log('📋 [FORM] VagaId detectado:', vagaId || 'NENHUMA');
+    console.log('📋 [FORM] localStorage candidatura_vaga_id:', localStorage.getItem('candidatura_vaga_id'));
     initializeForm();
   }, []);
 
@@ -283,9 +289,14 @@ export default function FormularioCurriculo() {
         setTimeout(() => {
           console.log('🔍 [FORM] Token antes de navegar:', localStorage.getItem('recruta_ai_token') ? 'EXISTE' : 'NÃO EXISTE');
           console.log('🔍 [FORM] Usuário antes de navegar:', localStorage.getItem('recruta_ai_user') ? 'EXISTE' : 'NÃO EXISTE');
+          console.log('🔍 [FORM] VagaId antes de navegar:', vagaId || 'NENHUMA');
           console.log('🚀 [FORM] Navegando para /teste-comportamental com curriculoData');
-          navigate('/teste-comportamental', {
-            state: { curriculoData: formData }
+          
+          // Se houver vaga vinculada, passa o parâmetro
+          const testeUrl = vagaId ? `/teste-comportamental?vaga=${vagaId}` : '/teste-comportamental';
+          console.log('🚀 [FORM] URL de destino:', testeUrl);
+          navigate(testeUrl, {
+            state: { curriculoData: formData, vagaId }
           });
         }, 1000);
       }
@@ -703,19 +714,21 @@ export default function FormularioCurriculo() {
 
                       <div>
                         <Label>Data Início *</Label>
-                        <Input
-                          type="month"
+                        <MonthYearPicker
                           value={exp.dataInicio}
-                          onChange={(e) => updateExperiencia(index, 'dataInicio', e.target.value)}
+                          onChange={(value) => updateExperiencia(index, 'dataInicio', value)}
+                          placeholder="Selecione o mês e ano"
+                          maxDate={new Date()} // Não permite datas futuras
                         />
                       </div>
 
                       <div>
                         <Label>Data Fim</Label>
-                        <Input
-                          type="month"
+                        <MonthYearPicker
                           value={exp.dataFim}
-                          onChange={(e) => updateExperiencia(index, 'dataFim', e.target.value)}
+                          onChange={(value) => updateExperiencia(index, 'dataFim', value)}
+                          placeholder="Selecione o mês e ano"
+                          maxDate={new Date()} // Não permite datas futuras
                           disabled={exp.atual}
                         />
                       </div>
@@ -800,19 +813,22 @@ export default function FormularioCurriculo() {
 
                       <div>
                         <Label>Data Início *</Label>
-                        <Input
-                          type="month"
+                        <MonthYearPicker
                           value={form.dataInicio}
-                          onChange={(e) => updateFormacao(index, 'dataInicio', e.target.value)}
+                          onChange={(value) => updateFormacao(index, 'dataInicio', value)}
+                          placeholder="Selecione o mês e ano"
+                          maxDate={new Date()} // Não permite datas futuras
                         />
                       </div>
 
                       <div>
                         <Label>Data Fim</Label>
-                        <Input
-                          type="month"
+                        <MonthYearPicker
                           value={form.dataFim}
-                          onChange={(e) => updateFormacao(index, 'dataFim', e.target.value)}
+                          onChange={(value) => updateFormacao(index, 'dataFim', value)}
+                          placeholder="Selecione o mês e ano"
+                          maxDate={new Date()} // Não permite datas futuras
+                          disabled={form.status === 'cursando'}
                         />
                       </div>
 
@@ -821,7 +837,12 @@ export default function FormularioCurriculo() {
                         <select
                           className="w-full h-10 px-3 py-2 text-sm rounded-md border border-input bg-background"
                           value={form.status}
-                          onChange={(e) => updateFormacao(index, 'status', e.target.value)}
+                          onChange={(e) => {
+                            updateFormacao(index, 'status', e.target.value);
+                            if (e.target.value === 'cursando') {
+                              updateFormacao(index, 'dataFim', '');
+                            }
+                          }}
                         >
                           <option value="cursando">Cursando</option>
                           <option value="completo">Completo</option>

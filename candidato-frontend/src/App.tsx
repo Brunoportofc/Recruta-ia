@@ -10,6 +10,7 @@ import AreaCandidato from './pages/AreaCandidato';
 import MeuPerfil from './pages/MeuPerfil';
 import MinhaCandidatura from './pages/MinhaCandidatura';
 import Dashboard from './pages/Dashboard';
+import CandidaturaVaga from './pages/CandidaturaVaga';
 import { Toaster } from './components/ui/toaster';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Routes>
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
+          <Route path="/candidato" element={<CandidaturaVaga />} />
           <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
           
           {/* Rotas protegidas */}
