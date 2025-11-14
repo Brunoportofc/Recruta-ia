@@ -1,6 +1,19 @@
 import prisma from '../../lib/prisma.js';
 
 class EmpresaRepository {
+  async findAll() {
+    try {
+      const empresas = await prisma.empresa.findMany({
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      return empresas;
+    } catch (error) {
+      throw new Error(`Erro ao buscar empresas: ${error.message}`);
+    }
+  }
+
   async findById(id) {
     try {
       const empresa = await prisma.empresa.findUnique({

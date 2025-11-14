@@ -16,11 +16,102 @@ class JobsController {
     }
   }
 
+  async getJobById(req, res) {
+    try {
+      const { id } = req.params;
+      const job = await jobsRepository.findById(id);
+      res.json(job);
+    } catch (error) {
+      console.error('Erro ao buscar vaga:', error);
+      
+      if (error.message.includes('não encontrada')) {
+        return res.status(404).json({ 
+          error: 'Vaga não encontrada',
+          details: error.message 
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Erro ao buscar vaga',
+        details: error.message 
+      });
+    }
+  }
+
+  async updateJob(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+
+      console.log('📝 [JOBS] Atualizando vaga:', id);
+      console.log('📝 [JOBS] Dados para atualizar:', updateData);
+
+      // Busca vaga existente
+      const existingJob = await jobsRepository.findById(id);
+      if (!existingJob) {
+        return res.status(404).json({ 
+          error: 'Vaga não encontrada' 
+        });
+      }
+
+      // Atualiza a vaga
+      const updatedJob = await jobsRepository.update(id, updateData);
+
+      console.log('✅ [JOBS] Vaga atualizada com sucesso');
+      
+      res.json({
+        success: true,
+        message: 'Vaga atualizada com sucesso',
+        data: updatedJob
+      });
+    } catch (error) {
+      console.error('❌ [JOBS] Erro ao atualizar vaga:', error);
+      res.status(500).json({ 
+        error: 'Erro ao atualizar vaga',
+        details: error.message 
+      });
+    }
+  }
+
   async createJob(req, res) {
     try {
       const payload = req.body;
+      
       // TODO: Pegar empresaId do token JWT quando tiver autenticação
-      const empresaId = req.query.empresaId || req.body.empresaId || 'temp-empresa-id';
+      // Por enquanto, vamos criar uma empresa temporária ou usar uma existente
+      let empresaId = req.query.empresaId || req.body.empresaId;
+      
+      if (!empresaId) {
+        console.log('⚠️  [JOBS] empresaId não fornecido, buscando ou criando empresa de desenvolvimento...');
+        
+        // Tenta buscar uma empresa existente de desenvolvimento
+        const empresas = await empresaRepository.findAll();
+        
+        if (empresas && empresas.length > 0) {
+          // Reutiliza a primeira empresa encontrada
+          empresaId = empresas[0].id;
+          console.log('✅ [JOBS] Usando empresa existente:', empresas[0].nome, '-', empresaId);
+        } else {
+          // Se não houver nenhuma empresa, cria UMA empresa de desenvolvimento
+          console.log('📝 [JOBS] Nenhuma empresa encontrada, criando empresa de desenvolvimento...');
+          const companyName = payload.company?.text || payload.company?.id || payload.company || 'Empresa de Desenvolvimento';
+          const locationName = typeof payload.location === 'object' && payload.location?.text 
+            ? payload.location.text 
+            : 'São Paulo, SP';
+          
+          const empresaTemp = await empresaRepository.create({
+            nome: companyName,
+            email: 'desenvolvimento@empresa.com',
+            senha: 'dev-hash',
+            telefone: '(00) 00000-0000',
+            ramoAtuacao: 'Tecnologia',
+            tamanhoEmpresa: '1-10',
+            localizacao: locationName
+          });
+          empresaId = empresaTemp.id;
+          console.log('✅ [JOBS] Empresa de desenvolvimento criada:', empresaId);
+        }
+      }
 
       // Validação dos campos obrigatórios
       const validationError = this.validateJobPayload(payload);
@@ -29,89 +120,22 @@ class JobsController {
       }
 
       // Preparar dados para inserção no banco
-      const jobData = this.prepareJobData(payload);
+      const jobData = this.prepareJobData(payload, empresaId);
 
       // PASSO 1: Salvar no banco de dados local
       console.log('💾 [BACKEND] Salvando vaga no banco de dados...');
+      console.log('💾 [BACKEND] empresaId:', empresaId);
       const job = await jobsRepository.create(jobData);
       console.log('✅ [BACKEND] Vaga salva no banco:', job.id);
 
-      // PASSO 2: Publicar no LinkedIn via Unipile
-      let unipileJobId = null;
-      let linkedinUrl = null;
-      let status = 'syncing';
-      let errorMessage = null;
-
-      // Busca dados da empresa para obter o account_id
-      let empresa = null;
-      try {
-        empresa = await empresaRepository.findById(empresaId);
-      } catch (error) {
-        console.warn('⚠️  [BACKEND] Empresa não encontrada, criando temporariamente para teste');
-        // Cria empresa temporária para teste
-        empresa = await empresaRepository.create({
-          id: empresaId,
-          nome: 'Empresa Teste',
-          email: `empresa-${empresaId}@teste.com`
-        });
-      }
-
-      // Verifica se empresa tem LinkedIn conectado
-      if (process.env.UNIPILE_API_KEY && empresa.unipileAccountId) {
-        try {
-          console.log('🚀 [BACKEND] Publicando vaga no LinkedIn via Unipile...');
-          console.log('🏢 [BACKEND] Usando Account ID da empresa:', empresa.unipileAccountId);
-          
-          // Criar rascunho usando o account_id da empresa
-          const draftResponse = await unipileService.createJobPosting(jobData, empresa.unipileAccountId);
-          unipileJobId = draftResponse.id;
-          
-          console.log('📝 [BACKEND] Rascunho criado no Unipile:', unipileJobId);
-
-          // Publicar rascunho
-          const publishResponse = await unipileService.publishJobPosting(unipileJobId);
-          linkedinUrl = publishResponse.url || null;
-          status = 'active';
-
-          console.log('✅ [BACKEND] Vaga publicada no LinkedIn com sucesso!');
-          if (linkedinUrl) {
-            console.log('🔗 [BACKEND] URL do LinkedIn:', linkedinUrl);
-          }
-
-        } catch (unipileError) {
-          console.error('❌ [BACKEND] Erro ao publicar no LinkedIn:', unipileError.message);
-          status = 'error';
-          errorMessage = unipileError.message;
-        }
-
-        // Atualizar registro no banco com dados do Unipile
-        await jobsRepository.update(job.id, {
-          unipileId: unipileJobId,
-          linkedinUrl: linkedinUrl,
-          status: status,
-          errorMessage: errorMessage
-        });
-      } else {
-        if (!process.env.UNIPILE_API_KEY) {
-          console.warn('⚠️  [BACKEND] Credenciais Unipile não configuradas no .env');
-        } else if (!empresa.unipileAccountId) {
-          console.warn('⚠️  [BACKEND] Empresa não tem LinkedIn conectado. Use: /empresa/linkedin/connect');
-        }
-        console.warn('⚠️  [BACKEND] Vaga salva apenas localmente como rascunho.');
-        await jobsRepository.update(job.id, { status: 'draft' });
-        status = 'draft';
-      }
-
-      // Buscar vaga atualizada
-      const updatedJob = await jobsRepository.findById(job.id);
+      // Por enquanto, todas as vagas são salvas como rascunho
+      // A publicação no LinkedIn será implementada depois com a integração da Unipile
+      console.log('✅ [BACKEND] Vaga salva como rascunho com sucesso!');
 
       res.status(201).json({ 
-        message: status === 'active' 
-          ? 'Vaga criada e publicada no LinkedIn com sucesso!' 
-          : status === 'error'
-          ? 'Vaga criada localmente, mas houve erro ao publicar no LinkedIn'
-          : 'Vaga criada localmente (Unipile não configurado)',
-        data: updatedJob
+        message: 'Vaga criada como rascunho com sucesso!',
+        id: job.id,
+        data: job
       });
 
     } catch (error) {
@@ -145,79 +169,67 @@ class JobsController {
       return 'Campo description é obrigatório';
     }
 
-    if (!payload.recruiter) {
-      return 'Campo recruiter é obrigatório';
-    }
-
-    // Validação do recruiter
-    if (!payload.recruiter.project?.name && !payload.recruiter.project?.id) {
-      return 'Campo recruiter.project é obrigatório';
-    }
-
-    if (!payload.recruiter.functions || payload.recruiter.functions.length === 0) {
-      return 'Campo recruiter.functions é obrigatório e deve ter pelo menos 1 função';
-    }
-
-    if (!payload.recruiter.industries || payload.recruiter.industries.length === 0) {
-      return 'Campo recruiter.industries é obrigatório e deve ter pelo menos 1 indústria';
-    }
-
-    if (!payload.recruiter.seniority) {
-      return 'Campo recruiter.seniority é obrigatório';
-    }
-
-    if (!payload.recruiter.apply_method) {
-      return 'Campo recruiter.apply_method é obrigatório';
-    }
-
-    // Validação do apply_method
-    if (payload.recruiter.apply_method.type === 'linkedin') {
-      if (!payload.recruiter.apply_method.notification_email) {
-        return 'Campo recruiter.apply_method.notification_email é obrigatório para tipo linkedin';
-      }
-    } else if (payload.recruiter.apply_method.type === 'external') {
-      if (!payload.recruiter.apply_method.url) {
-        return 'Campo recruiter.apply_method.url é obrigatório para tipo external';
-      }
-    }
-
+    // Campos do recruiter agora são OPCIONAIS (para quando a API da Unipile estiver pronta)
     return null;
   }
 
-  prepareJobData(payload) {
-    return {
-      job_title: payload.job_title.text || payload.job_title.id,
-      job_title_type: payload.job_title.text ? 'text' : 'id',
+  prepareJobData(payload, empresaId) {
+    const data = {
+      empresaId: empresaId, // ID da empresa que criou a vaga
+      jobTitle: payload.job_title.text || payload.job_title.id,
+      jobTitleType: payload.job_title.text ? 'text' : 'id',
       company: payload.company.text || payload.company.id,
-      company_type: payload.company.text ? 'text' : 'id',
+      companyType: payload.company.text ? 'text' : 'id',
       workplace: payload.workplace,
-      location: payload.location,
+      // Location no formato Unipile: { id: "103119278", text: "São Paulo - SP" }
+      location: typeof payload.location === 'object' && payload.location 
+        ? payload.location 
+        : { id: payload.location, text: "" },
       description: payload.description,
-      employment_status: payload.employment_status || null,
-      auto_rejection_template: payload.auto_rejection_template || null,
-      screening_questions: payload.screening_questions || [],
+      employmentStatus: payload.employment_status || null,
       
-      // Dados do recruiter
-      recruiter_project: payload.recruiter.project.name || payload.recruiter.project.id,
-      recruiter_project_type: payload.recruiter.project.name ? 'name' : 'id',
-      recruiter_functions: payload.recruiter.functions,
-      recruiter_industries: payload.recruiter.industries,
-      recruiter_seniority: payload.recruiter.seniority,
-      recruiter_apply_method_type: payload.recruiter.apply_method.type,
-      recruiter_apply_method_notification_email: payload.recruiter.apply_method.notification_email || null,
-      recruiter_apply_method_resume_required: payload.recruiter.apply_method.resume_required ?? true,
-      recruiter_apply_method_url: payload.recruiter.apply_method.url || null,
-      recruiter_include_poster_info: payload.recruiter.include_poster_info ?? true,
-      recruiter_tracking_pixel_url: payload.recruiter.tracking_pixel_url || null,
-      recruiter_company_job_id: payload.recruiter.company_job_id || null,
-      recruiter_auto_archive_screening_questions: payload.recruiter.auto_archive_applicants?.screening_questions ?? true,
-      recruiter_auto_archive_outside_country: payload.recruiter.auto_archive_applicants?.outside_of_country ?? true,
-      recruiter_send_rejection_notification: payload.recruiter.send_rejection_notification ?? true,
+      // Salário
+      salaryAmount: payload.salary_amount || null,
+      salaryMin: payload.salary_min || null,
+      salaryMax: payload.salary_max || null,
+      salaryAnonymous: payload.salary_anonymous || false,
       
-      // Metadados
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      // Configurações da vaga (testes, entrevistas, dias ativos)
+      jobConfig: payload.job_config || {},
+      
+      // Status padrão
+      status: payload.status || 'rascunho',
     };
+
+    // Campos opcionais do recruiter (apenas se fornecidos)
+    if (payload.recruiter) {
+      if (payload.recruiter.project) {
+        data.recruiterProject = payload.recruiter.project.name || payload.recruiter.project.id;
+        data.recruiterProjectType = payload.recruiter.project.name ? 'name' : 'id';
+      }
+      if (payload.recruiter.functions) {
+        data.recruiterFunctions = payload.recruiter.functions;
+      }
+      if (payload.recruiter.industries) {
+        data.recruiterIndustries = payload.recruiter.industries;
+      }
+      if (payload.recruiter.seniority) {
+        data.recruiterSeniority = payload.recruiter.seniority;
+      }
+      if (payload.recruiter.apply_url) {
+        data.recruiterApplyUrl = payload.recruiter.apply_url;
+      }
+      // Outras configurações do recruiter em um campo JSON
+      data.recruiterConfig = {
+        includePosterInfo: payload.recruiter.include_poster_info ?? true,
+        trackingPixelUrl: payload.recruiter.tracking_pixel_url || null,
+        companyJobId: payload.recruiter.company_job_id || null,
+        autoArchiveApplicants: payload.recruiter.auto_archive_applicants || {},
+        sendRejectionNotification: payload.recruiter.send_rejection_notification ?? true,
+      };
+    }
+    
+    return data;
   }
 }
 

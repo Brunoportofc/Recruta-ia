@@ -22,56 +22,36 @@ class CurriculoController {
       }
       
       const {
-        // Dados pessoais
+        // Dados pessoais básicos
         nomeCompleto,
         email,
         telefone,
         cidade,
         estado,
         linkedin,
-        objetivoProfissional,
-
-        // Arrays de dados
+        
+        // Dados completos do currículo (para retornar ao frontend)
         experiencias = [],
         formacoes = [],
         habilidades = [],
         idiomas = [],
-        certificacoes = []
+        certificacoes = [],
+        objetivoProfissional
       } = req.body;
 
-      console.log('📝 [CURRICULO] Salvando currículo para candidato:', candidatoId);
-      console.log('📝 [CURRICULO] Dados recebidos:', {
-        nomeCompleto,
-        email,
-        experienciasCount: experiencias.length,
-        formacoesCount: formacoes.length,
-        habilidadesCount: habilidades.length,
-        idiomasCount: idiomas.length,
-        certificacoesCount: certificacoes.length
-      });
+      console.log('📝 [CURRICULO] Salvando dados pessoais do candidato:', candidatoId);
+      console.log('📝 [CURRICULO] Nome:', nomeCompleto);
 
-      // Usa upsert para criar se não existir ou atualizar se já existe
+      // Salva APENAS dados pessoais na tabela candidatos
       const candidato = await prisma.candidato.upsert({
         where: { id: candidatoId },
         update: {
-          // Dados pessoais
           nomeCompleto,
           email,
           telefone,
           cidade,
           estado,
           linkedinUrl: linkedin,
-          objetivoProfissional,
-          
-          // Dados do currículo (JSON)
-          experiencias: experiencias || [],
-          formacoes: formacoes || [],
-          habilidades: habilidades || [],
-          idiomas: idiomas || [],
-          certificacoes: certificacoes || [],
-          
-          // Metadados
-          perfilCompleto: true,
           updatedAt: new Date()
         },
         create: {
@@ -82,28 +62,27 @@ class CurriculoController {
           telefone,
           cidade,
           estado,
-          linkedinUrl: linkedin,
-          objetivoProfissional,
-          
-          // Dados do currículo (JSON)
-          experiencias: experiencias || [],
-          formacoes: formacoes || [],
-          habilidades: habilidades || [],
-          idiomas: idiomas || [],
-          certificacoes: certificacoes || [],
-          
-          // Metadados
-          origemDados: 'manual',
-          perfilCompleto: true
+          linkedinUrl: linkedin
         }
       });
 
-      console.log('✅ [CURRICULO] Currículo salvo com sucesso!');
+      console.log('✅ [CURRICULO] Dados pessoais salvos com sucesso!');
 
+      // Retorna os dados pessoais + currículo completo que veio do frontend
+      // (o currículo completo será salvo na tabela candidaturas quando aplicar para vaga)
       res.json({
         success: true,
-        message: 'Currículo salvo com sucesso',
-        candidatoId: candidato.id
+        message: 'Dados salvos com sucesso',
+        candidatoId: candidato.id,
+        curriculo: {
+          ...candidato,
+          objetivoProfissional,
+          experiencias,
+          formacoes,
+          habilidades,
+          idiomas,
+          certificacoes
+        }
       });
     } catch (error) {
       console.error('❌ [CURRICULO] Erro ao salvar currículo:', error);
@@ -135,28 +114,20 @@ class CurriculoController {
         });
       }
 
-      console.log('✅ [CURRICULO] Currículo encontrado');
+      console.log('✅ [CURRICULO] Dados pessoais encontrados');
 
       res.json({
         success: true,
+        message: 'Apenas dados pessoais. Currículo completo fica salvo nas candidaturas.',
         curriculo: {
-          // Dados pessoais
+          // Dados pessoais básicos
           nomeCompleto: candidato.nomeCompleto,
           email: candidato.email,
           telefone: candidato.telefone,
           cidade: candidato.cidade,
           estado: candidato.estado,
           linkedin: candidato.linkedinUrl,
-          fotoPerfil: candidato.fotoPerfilUrl,
-          objetivoProfissional: candidato.objetivoProfissional,
-          perfilCompleto: candidato.perfilCompleto,
-
-          // Arrays JSON
-          experiencias: candidato.experiencias,
-          formacoes: candidato.formacoes,
-          habilidades: candidato.habilidades,
-          idiomas: candidato.idiomas,
-          certificacoes: candidato.certificacoes
+          fotoPerfil: candidato.fotoPerfilUrl
         }
       });
     } catch (error) {
@@ -171,6 +142,8 @@ class CurriculoController {
 
   /**
    * Salva resultado do teste comportamental
+   * NOTA: Atualmente apenas valida o candidato.
+   * O teste será salvo na tabela candidaturas quando o candidato se candidatar a uma vaga.
    */
   async salvarTesteComportamental(req, res) {
     try {
@@ -183,9 +156,9 @@ class CurriculoController {
         tempoTesteSegundos
       } = req.body;
 
-      console.log('🧠 [TESTE] Salvando teste comportamental para candidato:', candidatoId);
+      console.log('🧠 [TESTE] Recebendo teste comportamental do candidato:', candidatoId);
 
-      // Busca o candidato atual
+      // Busca o candidato para validar que existe
       const candidato = await prisma.candidato.findUnique({
         where: { id: candidatoId }
       });
@@ -197,34 +170,18 @@ class CurriculoController {
         });
       }
 
-      // Cria novo teste
-      const novoTeste = {
-        id: crypto.randomUUID(),
-        respostas,
-        resultado,
-        perfilDominante,
-        pontuacaoTotal,
-        tempoTesteSegundos,
-        dataRealizacao: new Date().toISOString()
-      };
+      // Gera ID para o teste (para retornar ao frontend)
+      const testeId = crypto.randomUUID();
 
-      // Adiciona ao array de testes
-      const testesAtualizados = [...(candidato.testesComportamentais || []), novoTeste];
+      console.log('✅ [TESTE] Teste recebido com sucesso. ID:', testeId);
+      console.log('ℹ️  [TESTE] O teste será salvo na tabela candidaturas quando o candidato se candidatar a uma vaga.');
 
-      // Atualiza candidato
-      await prisma.candidato.update({
-        where: { id: candidatoId },
-        data: {
-          testesComportamentais: testesAtualizados
-        }
-      });
-
-      console.log('✅ [TESTE] Teste salvo com sucesso:', novoTeste.id);
-
+      // Retorna sucesso
+      // O teste será salvo na tabela candidaturas quando houver aplicação para vaga
       res.json({
         success: true,
-        message: 'Teste comportamental salvo com sucesso',
-        testeId: novoTeste.id
+        message: 'Teste recebido com sucesso. Será salvo ao finalizar candidatura para vaga.',
+        testeId: testeId
       });
     } catch (error) {
       console.error('❌ [TESTE] Erro ao salvar teste:', error);

@@ -82,8 +82,8 @@ class AuthController {
       const resumeData = linkedinService.mapLinkedInToResumeData(linkedInProfile);
       console.log('✅ [CALLBACK] Dados mapeados:', JSON.stringify(resumeData, null, 2));
 
-      // Salva ou atualiza candidato no banco de dados
-      console.log('🔵 [CALLBACK] Salvando candidato no banco de dados...');
+      // Salva ou atualiza candidato no banco de dados (APENAS dados pessoais)
+      console.log('🔵 [CALLBACK] Salvando dados pessoais do candidato...');
       const candidato = await prisma.candidato.upsert({
         where: {
           linkedinId: resumeData.linkedinId || resumeData.email
@@ -96,7 +96,6 @@ class AuthController {
           estado: resumeData.estado || null,
           linkedinUrl: resumeData.linkedin || null,
           fotoPerfilUrl: resumeData.fotoPerfil || null,
-          origemDados: 'linkedin',
           updatedAt: new Date()
         },
         create: {
@@ -107,12 +106,10 @@ class AuthController {
           cidade: resumeData.cidade || null,
           estado: resumeData.estado || null,
           linkedinUrl: resumeData.linkedin || null,
-          fotoPerfilUrl: resumeData.fotoPerfil || null,
-          origemDados: 'linkedin',
-          perfilCompleto: false
+          fotoPerfilUrl: resumeData.fotoPerfil || null
         }
       });
-      console.log('✅ [CALLBACK] Candidato salvo no banco:', candidato.id);
+      console.log('✅ [CALLBACK] Dados pessoais salvos no banco:', candidato.id);
 
       // Gera JWT token para nossa aplicação
       console.log('🔵 [CALLBACK] Gerando JWT token...');

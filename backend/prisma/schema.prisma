@@ -17,17 +17,8 @@ model Candidato {
   estado                String?       @db.VarChar(2)
   linkedinUrl           String?       @map("linkedin_url")
   fotoPerfilUrl         String?       @map("foto_perfil_url")
-  objetivoProfissional  String?       @map("objetivo_profissional")
-  origemDados           String?       @map("origem_dados")
-  perfilCompleto        Boolean       @default(false) @map("perfil_completo")
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
-  certificacoes         Json          @default("[]")
-  experiencias          Json          @default("[]")
-  formacoes             Json          @default("[]")
-  habilidades           Json          @default("[]")
-  idiomas               Json          @default("[]")
-  testesComportamentais Json          @default("[]") @map("testes_comportamentais")
   candidaturas          Candidatura[]
 
   @@index([email])
@@ -36,53 +27,61 @@ model Candidato {
   @@map("candidatos")
 }
 
-model Job {
-  id                                     String        @id @default(uuid()) @db.Uuid
-  jobTitle                               String        @map("job_title")
-  jobTitleType                           String        @map("job_title_type")
-  company                                String
-  companyType                            String        @map("company_type")
-  workplace                              String
-  location                               String
-  description                            String
-  employmentStatus                       String?       @map("employment_status")
-  autoRejectionTemplate                  String?       @map("auto_rejection_template")
-  screeningQuestions                     Json          @default("[]") @map("screening_questions")
-  recruiterProject                       String        @map("recruiter_project")
-  recruiterProjectType                   String        @map("recruiter_project_type")
-  recruiterFunctions                     Json          @default("[]") @map("recruiter_functions")
-  recruiterIndustries                    Json          @default("[]") @map("recruiter_industries")
-  recruiterSeniority                     String        @map("recruiter_seniority")
-  recruiterApplyMethodType               String        @map("recruiter_apply_method_type")
-  recruiterApplyMethodNotificationEmail  String?       @map("recruiter_apply_method_notification_email")
-  recruiterApplyMethodResumeRequired     Boolean       @default(true) @map("recruiter_apply_method_resume_required")
-  recruiterApplyMethodUrl                String?       @map("recruiter_apply_method_url")
-  recruiterIncludePosterInfo             Boolean       @default(true) @map("recruiter_include_poster_info")
-  recruiterTrackingPixelUrl              String?       @map("recruiter_tracking_pixel_url")
-  recruiterCompanyJobId                  String?       @map("recruiter_company_job_id")
-  recruiterAutoArchiveScreeningQuestions Boolean       @default(true) @map("recruiter_auto_archive_screening_questions")
-  recruiterAutoArchiveOutsideCountry     Boolean       @default(true) @map("recruiter_auto_archive_outside_country")
-  recruiterSendRejectionNotification     Boolean       @default(true) @map("recruiter_send_rejection_notification")
-  createdAt                              DateTime      @default(now()) @map("created_at")
-  updatedAt                              DateTime      @updatedAt @map("updated_at")
-  errorMessage                           String?       @map("error_message")
-  linkedinUrl                            String?       @map("linkedin_url")
-  status                                 String        @default("syncing")
-  unipileId                              String?       @unique @map("unipile_id")
-  candidaturas                           Candidatura[]
+model Vaga {
+  id                    String        @id @default(uuid()) @db.Uuid
+  empresaId             String        @map("empresa_id") @db.Uuid
+  jobTitle              String        @map("job_title")
+  jobTitleType          String        @default("text") @map("job_title_type")
+  company               String
+  companyType           String        @default("text") @map("company_type")
+  workplace             String
+  location              Json          // Formato Unipile: { id: "103119278", text: "São Paulo - SP" }
+  description           String        @db.Text
+  employmentStatus      String?       @map("employment_status")
+  
+  // Salário
+  salaryAmount          Float?        @map("salary_amount")
+  salaryMin             Float?        @map("salary_min")
+  salaryMax             Float?        @map("salary_max")
+  salaryAnonymous       Boolean       @default(false) @map("salary_anonymous")
+  
+  // Configurações da vaga (testes, entrevistas, etc)
+  jobConfig             Json          @default("{}") @map("job_config")
+  
+  // Campos opcionais do recruiter (para quando a integração com Unipile estiver pronta)
+  recruiterProject      String?       @map("recruiter_project")
+  recruiterProjectType  String?       @map("recruiter_project_type")
+  recruiterFunctions    Json?         @map("recruiter_functions")
+  recruiterIndustries   Json?         @map("recruiter_industries")
+  recruiterSeniority    String?       @map("recruiter_seniority")
+  recruiterApplyUrl     String?       @map("recruiter_apply_url")
+  recruiterConfig       Json?         @map("recruiter_config")
+  
+  // Metadados
+  status                String        @default("rascunho")
+  linkedinUrl           String?       @map("linkedin_url")
+  unipileId             String?       @unique @map("unipile_id")
+  errorMessage          String?       @map("error_message")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+  
+  // Relações
+  empresa               Empresa       @relation(fields: [empresaId], references: [id])
+  candidaturas          Candidatura[]
 
+  @@index([empresaId])
   @@index([createdAt])
   @@index([workplace])
   @@index([company])
   @@index([status])
   @@index([unipileId])
-  @@map("jobs")
+  @@map("vagas")
 }
 
 model Candidatura {
   id                    String    @id @default(uuid()) @db.Uuid
   candidatoId           String    @map("candidato_id") @db.Uuid
-  jobId                 String    @map("job_id") @db.Uuid
+  vagaId                String    @map("vaga_id") @db.Uuid
   status                String    @default("analise_curriculo")
   curriculoSnapshot     Json      @map("curriculo_snapshot")
   testeResultado        Json?     @map("teste_resultado")
@@ -93,11 +92,11 @@ model Candidatura {
   dataFinalizacao       DateTime? @map("data_finalizacao")
   origemAplicacao       String    @default("plataforma") @map("origem_aplicacao")
   candidato             Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
-  job                   Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  vaga                  Vaga      @relation(fields: [vagaId], references: [id], onDelete: Cascade)
 
-  @@unique([candidatoId, jobId])
+  @@unique([candidatoId, vagaId])
   @@index([candidatoId])
-  @@index([jobId])
+  @@index([vagaId])
   @@index([status])
   @@index([dataCandidatura])
   @@map("candidaturas")
@@ -117,6 +116,9 @@ model Empresa {
   descricao      String?   @db.Text
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relações
+  vagas          Vaga[]
 
   @@index([email])
   @@map("empresas")

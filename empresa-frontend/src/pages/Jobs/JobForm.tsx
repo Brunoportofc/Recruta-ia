@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,54 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-interface ScreeningQuestion {
-  question: string;
-  position?: number;
-  must_match: boolean;
-  answer_type: "numeric" | "multiple_choices";
-  min_expectation?: number;
-  max_expectation?: number;
-  choices?: string[];
-  expected_choices?: string[];
-}
 
 export default function JobForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(isEditing);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const tabs = ["basic", "recruiter", "config"] as const;
+  const tabs = ["basic", "config"] as const;
   const [currentTab, setCurrentTab] = useState<typeof tabs[number]>("basic");
   const [formData, setFormData] = useState({
     job_title: { text: "" },
     company: { text: "" },
     workplace: "" as "ON_SITE" | "HYBRID" | "REMOTE" | "",
-    location: "",
+    location: { text: "" }, // Formato Unipile: { text: "São Paulo - SP" } ou { id: "103119278" }
     description: "",
-  
     employment_status: "" as "FULL_TIME" | "PART_TIME" | "CONTRACT" | "TEMPORARY" | "OTHER" | "VOLUNTEER" | "INTERNSHIP" | "",
-    auto_rejection_template: "",
-  
-    recruiter: {
-      project: { name: "" },
-      functions: [] as string[],
-      industries: [] as string[],
-      seniority: "" as "INTERNSHIP" | "ENTRY_LEVEL" | "ASSOCIATE" | "MID_SENIOR_LEVEL" | "DIRECTOR" | "EXECUTIVE" | "NOT_APPLICABLE" | "",
-      apply_url: "",
-      include_poster_info: true,
-      tracking_pixel_url: "",
-      company_job_id: "",
-      auto_archive_applicants: {
-        screening_questions: true,
-        outside_of_country: true,
-      },
-      send_rejection_notification: true,
-    },
     job_config: {
       tests: {
         test1: false,
@@ -69,14 +41,73 @@ export default function JobForm() {
     },
     salary: {
       mode: "single" as "single" | "range",
-      amount: "" as number | string,
-      min: "" as number | string,
-      max: "" as number | string,
+      amount: "" as string,
+      min: "" as string,
+      max: "" as string,
     },
     salary_anonymous: false,
-    
   });
 
+
+  // Carregar dados da vaga ao editar
+  useEffect(() => {
+    const loadJobData = async () => {
+      if (!isEditing || !id) return;
+
+      try {
+        console.log('📝 [EDIT] Carregando dados da vaga:', id);
+        const response = await fetch(`http://localhost:3001/jobs/${id}`);
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar vaga');
+        }
+
+        const data = await response.json();
+        console.log('✅ [EDIT] Vaga carregada:', data);
+
+        // Mapear dados da API para o formato do formulário
+        setFormData({
+          job_title: { text: data.jobTitle || "" },
+          company: { text: data.company || "" },
+          workplace: data.workplace || "",
+          location: typeof data.location === 'object' && data.location 
+            ? data.location 
+            : { text: data.location || "" },
+          description: data.description || "",
+          employment_status: data.employmentStatus || "",
+          job_config: data.jobConfig || {
+            tests: { test1: false, test2: false, test3: false, test4: false },
+            interviews_count: 1,
+            active_days: 30,
+          },
+          salary: {
+            mode: "single",
+            amount: data.salaryAmount 
+              ? data.salaryAmount.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })
+              : "",
+            min: "",
+            max: "",
+          },
+          salary_anonymous: data.salaryAnonymous || false,
+        });
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('❌ [EDIT] Erro ao carregar vaga:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados da vaga",
+          variant: "destructive"
+        });
+        navigate('/vagas');
+      }
+    };
+
+    loadJobData();
+  }, [id, isEditing, navigate, toast]);
 
   const handleAdvance = () => {
     const nextIndex = tabs.indexOf(currentTab) + 1;
@@ -103,43 +134,34 @@ export default function JobForm() {
         location: formData.location,
         description: formData.description,
         ...(formData.employment_status && { employment_status: formData.employment_status }),
-        ...(formData.auto_rejection_template && { auto_rejection_template: formData.auto_rejection_template }),
-        recruiter: {
-          project: formData.recruiter.project.name ? { name: formData.recruiter.project.name } : { id: formData.recruiter.project.name },
-          functions: formData.recruiter.functions,
-          industries: formData.recruiter.industries,
-          seniority: formData.recruiter.seniority,
-          apply_method: {
-            type: "external",
-            url: formData.recruiter.apply_url,
-          },
-          include_poster_info: formData.recruiter.include_poster_info,
-          ...(formData.recruiter.tracking_pixel_url && { tracking_pixel_url: formData.recruiter.tracking_pixel_url }),
-          ...(formData.recruiter.company_job_id && { company_job_id: formData.recruiter.company_job_id }),
-          auto_archive_applicants: formData.recruiter.auto_archive_applicants,
-          send_rejection_notification: formData.recruiter.send_rejection_notification,
-        },
         job_config: {
           tests: formData.job_config.tests,
           interviews_count: formData.job_config.interviews_count,
           active_days: formData.job_config.active_days,
         },
         status: "rascunho",
-         ...(formData.salary_anonymous
+        ...(formData.salary_anonymous
           ? { salary_anonymous: true }
-          : formData.salary.mode === "range"
-          ? {
-              ...(formData.salary.min !== "" && { salary_min: Number(formData.salary.min) }),
-              ...(formData.salary.max !== "" && { salary_max: Number(formData.salary.max) }),
-            }
           : formData.salary.amount !== ""
-          ? { salary_amount: Number(formData.salary.amount) }
+          ? { 
+              salary_amount: parseFloat(
+                formData.salary.amount
+                  .replace(/\./g, '') // Remove pontos
+                  .replace(',', '.') // Substitui vírgula por ponto
+              )
+            }
           : {}),
       };
       console.log("📤 Enviando payload para API:", payload);
 
-      const response = await fetch('http://localhost:3001/jobs', {
-        method: 'POST',
+      const url = isEditing 
+        ? `http://localhost:3001/jobs/${id}`
+        : 'http://localhost:3001/jobs';
+      
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -149,31 +171,31 @@ export default function JobForm() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || result.details || 'Erro ao criar vaga');
+        throw new Error(result.error || result.details || `Erro ao ${isEditing ? 'atualizar' : 'criar'} vaga`);
       }
 
-      console.log("✅ Vaga criada com sucesso:", result);
+      console.log(`✅ Vaga ${isEditing ? 'atualizada' : 'criada'} com sucesso:`, result);
 
       toast({
-        title: "✅ Vaga criada como rascunho!",
-        description: result.message || "A vaga foi criada como rascunho.",
+        title: isEditing ? "✅ Vaga atualizada!" : "✅ Vaga criada como rascunho!",
+        description: result.message || `A vaga foi ${isEditing ? 'atualizada' : 'criada como rascunho'}.`,
         variant: "default",
       });
 
-      const createdId = result.id ?? result.data?.id ?? result.job?.id;
+      const jobId = isEditing ? id : (result.id ?? result.data?.id ?? result.job?.id);
       setTimeout(() => {
-        if (createdId) {
-          navigate(`/vagas/${createdId}`, { state: { status: 'rascunho' } });
+        if (jobId) {
+          navigate(`/vagas/${jobId}`, { state: { status: 'rascunho' } });
         } else {
           navigate('/vagas');
         }
       }, 800);
 
     } catch (error) {
-      console.error("❌ Erro ao criar vaga:", error);
+      console.error(`❌ Erro ao ${isEditing ? 'atualizar' : 'criar'} vaga:`, error);
       toast({
-        title: "❌ Erro ao criar vaga",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao publicar a vaga. Tente novamente.",
+        title: `❌ Erro ao ${isEditing ? 'atualizar' : 'criar'} vaga`,
+        description: error instanceof Error ? error.message : `Ocorreu um erro ao ${isEditing ? 'atualizar' : 'publicar'} a vaga. Tente novamente.`,
         variant: "destructive",
       });
     } finally {
@@ -195,56 +217,19 @@ export default function JobForm() {
       return newData;
     });
   };
-
-  const handleArrayChange = (path: string, index: number, value: string) => {
-    setFormData((prev) => {
-      const keys = path.split(".");
-      const newData = { ...prev };
-      let current: any = newData;
-      
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      
-      const array = [...current[keys[keys.length - 1]]];
-      array[index] = value;
-      current[keys[keys.length - 1]] = array;
-      return newData;
-    });
-  };
-
-  const addArrayItem = (path: string, value: string = "") => {
-    setFormData((prev) => {
-      const keys = path.split(".");
-      const newData = { ...prev };
-      let current: any = newData;
-      
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      
-      current[keys[keys.length - 1]] = [...current[keys[keys.length - 1]], value];
-      return newData;
-    });
-  };
-
-  const removeArrayItem = (path: string, index: number) => {
-    setFormData((prev) => {
-      const keys = path.split(".");
-      const newData = { ...prev };
-      let current: any = newData;
-      
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      
-      const array = [...current[keys[keys.length - 1]]];
-      array.splice(index, 1);
-      current[keys[keys.length - 1]] = array;
-      return newData;
-    });
-  };
   
+
+  // Loading state quando estiver carregando dados da vaga
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Carregando dados da vaga...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -253,18 +238,17 @@ export default function JobForm() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{isEditing ? "Editar Vaga" : "Nova Vaga LinkedIn"}</h1>
+          <h1 className="text-3xl font-bold">{isEditing ? "Editar Vaga" : "Nova Vaga"}</h1>
           <p className="text-muted-foreground">
-            {isEditing ? "Atualize as informações da vaga" : "Preencha os dados para criar uma nova vaga no LinkedIn"}
+            {isEditing ? "Atualize as informações da vaga" : "Preencha os dados para criar uma nova vaga"}
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         <Tabs value={currentTab} onValueChange={(v) => setCurrentTab(v as any)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
-              <TabsTrigger value="recruiter">Recrutamento</TabsTrigger>
               <TabsTrigger value="config">Configuração</TabsTrigger>
             </TabsList>
 
@@ -273,7 +257,7 @@ export default function JobForm() {
             <Card>
               <CardHeader>
                 <CardTitle>Informações Básicas da Vaga</CardTitle>
-                <CardDescription>Campos obrigatórios para criar a vaga no LinkedIn</CardDescription>
+                <CardDescription>Preencha os campos obrigatórios para criar a vaga</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -319,47 +303,15 @@ export default function JobForm() {
 
                   <div className="space-y-2">
                     <Label htmlFor="location">Localização *</Label>
-                    <Select
-                      value={formData.location}
-                      onValueChange={(value) => handleChange("location", value)}
+                    <Input
+                      id="location"
+                      placeholder="Ex: São Paulo - SP, Ribeirão Preto - SP, etc."
+                      value={formData.location.text || ""}
+                      onChange={(e) => handleChange("location", { text: e.target.value })}
                       required
-                    >
-                      <SelectTrigger id="location">
-                        <SelectValue placeholder="Selecione a localização" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="103119278">São Paulo - SP</SelectItem>
-                        <SelectItem value="103454366">Rio de Janeiro - RJ</SelectItem>
-                        <SelectItem value="103323681">Belo Horizonte - MG</SelectItem>
-                        <SelectItem value="103883259">Brasília - DF</SelectItem>
-                        <SelectItem value="103154980">Curitiba - PR</SelectItem>
-                        <SelectItem value="103254728">Porto Alegre - RS</SelectItem>
-                        <SelectItem value="103177389">Recife - PE</SelectItem>
-                        <SelectItem value="103195834">Salvador - BA</SelectItem>
-                        <SelectItem value="103267518">Fortaleza - CE</SelectItem>
-                        <SelectItem value="103191675">Manaus - AM</SelectItem>
-                        <SelectItem value="103176292">Campinas - SP</SelectItem>
-                        <SelectItem value="103162431">Florianópolis - SC</SelectItem>
-                        <SelectItem value="103347776">Vitória - ES</SelectItem>
-                        <SelectItem value="103221083">Goiânia - GO</SelectItem>
-                        <SelectItem value="103348753">Natal - RN</SelectItem>
-                        <SelectItem value="103259389">João Pessoa - PB</SelectItem>
-                        <SelectItem value="103267518">Aracaju - SE</SelectItem>
-                        <SelectItem value="103195834">Maceió - AL</SelectItem>
-                        <SelectItem value="103267518">Teresina - PI</SelectItem>
-                        <SelectItem value="103191675">São Luís - MA</SelectItem>
-                        <SelectItem value="103176292">Belém - PA</SelectItem>
-                        <SelectItem value="103162431">Macapá - AP</SelectItem>
-                        <SelectItem value="103347776">Boa Vista - RR</SelectItem>
-                        <SelectItem value="103221083">Rio Branco - AC</SelectItem>
-                        <SelectItem value="103348753">Palmas - TO</SelectItem>
-                        <SelectItem value="103259389">Cuiabá - MT</SelectItem>
-                        <SelectItem value="103267518">Campo Grande - MS</SelectItem>
-                        <SelectItem value="103195834">Porto Velho - RO</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    />
                     <p className="text-xs text-muted-foreground">
-                      A localização será convertida para o ID correto no backend
+                      Digite a cidade onde a vaga está localizada
                     </p>
                   </div>
                 </div>
@@ -368,7 +320,7 @@ export default function JobForm() {
                   <Label htmlFor="description">Descrição *</Label>
                   <Textarea
                     id="description"
-                    placeholder="Descreva a vaga, responsabilidades e requisitos. Você pode usar HTML tags."
+                    placeholder="Descreva a vaga, responsabilidades e requisitos..."
                     value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
                     rows={8}
@@ -398,254 +350,73 @@ export default function JobForm() {
                     </Select>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="salary">Salário</Label>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={formData.salary.mode === "range" ? "default" : "outline"}
-                        onClick={() => handleChange("salary.mode", formData.salary.mode === "range" ? "single" : "range")}
-                      >
-                        Range
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={formData.salary_anonymous ? "default" : "outline"}
-                        onClick={() => {
-                          if (!formData.salary_anonymous) {
-                            handleChange("salary.amount", "");
-                            handleChange("salary.min", "");
-                            handleChange("salary.max", "");
-                          }
-                          handleChange("salary_anonymous", !formData.salary_anonymous);
-                        }}
-                      >
-                        Anônimo
-                      </Button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="salary">Salário</Label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="salary_anonymous" className="text-sm font-normal cursor-pointer">
+                          Salário anônimo
+                        </Label>
+                        <Switch
+                          id="salary_anonymous"
+                          checked={formData.salary_anonymous}
+                          onCheckedChange={(checked) => {
+                            handleChange("salary_anonymous", checked);
+                            if (checked) {
+                              handleChange("salary.amount", "");
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="mt-2">
-                      {formData.salary_anonymous ? (
-                        <p className="text-sm text-muted-foreground">O salário não será exibido na vaga.</p>
-                      ) : formData.salary.mode === "range" ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          <Input
-                            id="salary_min"
-                            type="number"
-                            placeholder="Mínimo"
-                            value={formData.salary.min}
-                            onChange={(e) => handleChange("salary.min", e.target.value)}
-                          />
-                          <Input
-                            id="salary_max"
-                            type="number"
-                            placeholder="Máximo"
-                            value={formData.salary.max}
-                            onChange={(e) => handleChange("salary.max", e.target.value)}
-                          />
-                        </div>
-                      ) : (
+                    {formData.salary_anonymous ? (
+                      <div className="p-4 border rounded-md bg-muted/50">
+                        <p className="text-sm text-muted-foreground">
+                          💼 O salário será exibido como <strong>"A combinar"</strong> na vaga.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <span className="absolute left-3 top-[10px] text-muted-foreground font-medium">
+                          R$
+                        </span>
                         <Input
                           id="salary_amount"
-                          type="number"
-                          placeholder="Valor"
+                          type="text"
+                          placeholder="8.000,00"
                           value={formData.salary.amount}
-                          onChange={(e) => handleChange("salary.amount", e.target.value)}
-                          disabled={formData.salary_anonymous}
+                          onChange={(e) => {
+                            // Remove tudo que não for número
+                            const numbers = e.target.value.replace(/\D/g, '');
+                            
+                            // Converte para formato com vírgula
+                            if (numbers) {
+                              const value = parseInt(numbers) / 100;
+                              const formatted = value.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              });
+                              handleChange("salary.amount", formatted);
+                            } else {
+                              handleChange("salary.amount", "");
+                            }
+                          }}
+                          className="pl-11"
                         />
-                      )}
-                    </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Digite o valor do salário mensal
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Configurações de Recrutamento */}
-          <TabsContent value="recruiter" className="space-y-6">
-            {/* Seção 1: Projeto */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">📋 Projeto</CardTitle>
-                <CardDescription>Defina ou crie um novo projeto para este recrutamento</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="project_name">Nome do Projeto *</Label>
-                  <p className="text-xs text-muted-foreground">ID de um projeto existente OU nome de um novo projeto</p>
-                  <Input
-                    id="project_name"
-                    placeholder="Ex: Campanha 2025 ou ID_existente"
-                    value={formData.recruiter.project.name}
-                    onChange={(e) => handleChange("recruiter.project.name", e.target.value)}
-                    required
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Seção 2: Funções e Indústrias */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">🎯 Função e Indústria</CardTitle>
-                <CardDescription>Selecione até 3 funções e indústrias para categorizar a vaga</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label>Funções (Job Functions) *</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Use IDs do LinkedIn (ex: "engineering", "sales", "marketing"). Máximo 3. Use a rota "List search parameters" com type=JOB_FUNCTION para obter IDs válidos.
-                  </p>
-                  {formData.recruiter.functions.map((func, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder={`Função ${index + 1} (ID)`}
-                        value={func}
-                        onChange={(e) => handleArrayChange("recruiter.functions", index, e.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removeArrayItem("recruiter.functions", index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  {formData.recruiter.functions.length < 3 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addArrayItem("recruiter.functions")}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar Função
-                    </Button>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <Label>Indústrias *</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Use IDs de indústrias do LinkedIn. Máximo 3. Use a rota "List search parameters" com type=INDUSTRY para obter IDs válidos.
-                  </p>
-                  {formData.recruiter.industries.map((industry, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder={`Indústria ${index + 1} (ID numérico)`}
-                        value={industry}
-                        onChange={(e) => handleArrayChange("recruiter.industries", index, e.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removeArrayItem("recruiter.industries", index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  {formData.recruiter.industries.length < 3 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addArrayItem("recruiter.industries")}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar Indústria
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Seção 3: Senioridade */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">📊 Nível de Senioridade</CardTitle>
-                <CardDescription>Defina o nível esperado para as vagas</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="seniority">Senioridade *</Label>
-                  <Select
-                    value={formData.recruiter.seniority}
-                    onValueChange={(value) => handleChange("recruiter.seniority", value)}
-                    required
-                  >
-                    <SelectTrigger id="seniority">
-                      <SelectValue placeholder="Selecione o nível" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="INTERNSHIP">🎓 Estágio</SelectItem>
-                      <SelectItem value="ENTRY_LEVEL">🚀 Iniciante</SelectItem>
-                      <SelectItem value="ASSOCIATE">👤 Associado</SelectItem>
-                      <SelectItem value="MID_SENIOR_LEVEL">⭐ Pleno/Sênior</SelectItem>
-                      <SelectItem value="DIRECTOR">🎯 Diretor</SelectItem>
-                      <SelectItem value="EXECUTIVE">👔 Executivo</SelectItem>
-                      <SelectItem value="NOT_APPLICABLE">❓ Não Aplicável</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            
-            {/* Seção 5: Rastreamento e Visibilidade */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">👁️ Visibilidade e Rastreamento</CardTitle>
-                <CardDescription>Configure visibilidade do recrutador e rastreamento de impressões</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-muted rounded-md">
-                  <Label htmlFor="include_poster_info" className="cursor-pointer">Mostrar informações do recrutador no post</Label>
-                  <Switch
-                    id="include_poster_info"
-                    checked={formData.recruiter.include_poster_info}
-                    onCheckedChange={(checked) => handleChange("recruiter.include_poster_info", checked)}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label htmlFor="tracking_pixel_url">URL de Pixel de Rastreamento</Label>
-                  <p className="text-xs text-muted-foreground">URL para rastrear impressões da vaga</p>
-                  <Input
-                    id="tracking_pixel_url"
-                    type="url"
-                    placeholder="https://exemplo.com/pixel"
-                    value={formData.recruiter.tracking_pixel_url}
-                    onChange={(e) => handleChange("recruiter.tracking_pixel_url", e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="company_job_id">ID da Vaga na Empresa</Label>
-                  <p className="text-xs text-muted-foreground">ID interno da empresa para rastreamento de candidaturas</p>
-                  <Input
-                    id="company_job_id"
-                    placeholder="ID interno da empresa"
-                    value={formData.recruiter.company_job_id}
-                    onChange={(e) => handleChange("recruiter.company_job_id", e.target.value)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-              {/* Configuração da Vaga */}
-              <TabsContent value="config" className="space-y-6">
+          {/* Configuração da Vaga */}
+          <TabsContent value="config" className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>Configuração da Vaga</CardTitle>
@@ -739,10 +510,6 @@ export default function JobForm() {
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              {/* screening, advanced and rejection tabs removed - candidaturas serão por link externo */}
-
-          {/* Abas de triagem/avançado/rejeição removidas (candidaturas via link externo) */}
         </Tabs>
 
         <div className="flex justify-between items-center gap-2 pt-6">

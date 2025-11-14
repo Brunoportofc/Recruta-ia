@@ -6,13 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import mockVagas from "@/mockData/mockVagas.json";
 
 interface Job {
   id: string;
   jobTitle: string;
   description: string;
-  status: "syncing" | "active" | "closed" | "error" | "draft";
+  status: "syncing" | "active" | "closed" | "error" | "draft" | "rascunho";
   workplace: string;
   company: string;
   createdAt: string;
@@ -21,11 +20,12 @@ interface Job {
 
 const statusConfig = {
   active: { label: "Ativa", variant: "default" as const },
-  closed: { label: "Encerrada", variant: "secondary" as const },
-  rascunho: { label: "Rascunho", variant: "secondary" as const },
+  closed: { label: "Encerrada", variant: "destructive" as const },
+  rascunho: { label: "Rascunho", variant: "outline" as const },
+  draft: { label: "Rascunho", variant: "outline" as const },
+  syncing: { label: "Sincronizando", variant: "secondary" as const },
+  error: { label: "Erro", variant: "destructive" as const },
 };
-
-// use the imported JSON (mockVagas.vagas) as the source of truth for local development
 
 export default function JobsList() {
   const navigate = useNavigate();
@@ -35,24 +35,8 @@ export default function JobsList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    try {
-      const mapped = (mockVagas.vagas || []).map((v: any) => ({
-        id: String(v.id),
-        jobTitle: v.job_title || v.titulo || v.jobTitle,
-        description: v.description || v.descricao || "",
-        status: (v.status as Job["status"]) || "active",
-        workplace: v.workplace || "REMOTE",
-        company: v.company || "",
-        createdAt: v.created_at || v.createdAt || new Date().toISOString(),
-        linkedinUrl: v.linkedin_url || v.linkedinUrl || undefined,
-      }));
-
-      setJobs(mapped);
-    } catch (err) {
-      // fallback to empty
-      setJobs([]);
-    }
-    setIsLoading(false);
+    loadJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadJobs = async () => {

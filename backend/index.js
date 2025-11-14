@@ -7,6 +7,7 @@ import jobsRoutes from './routes/jobs.js';
 import authRoutes from './routes/auth.js';
 import curriculoRoutes from './routes/curriculo.js';
 import empresaRoutes from './routes/empresa.js';
+import candidaturaRoutes from './routes/candidatura.js';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ app.use('/auth', authRoutes);
 app.use('/jobs', jobsRoutes);
 app.use('/curriculo', curriculoRoutes);
 app.use('/empresa', empresaRoutes);
+app.use('/candidatura', candidaturaRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {
@@ -58,5 +60,6 @@ app.listen(PORT, () => {
   console.log(`📋 Jobs API: http://localhost:${PORT}/jobs`);
   console.log(`📄 Curriculo API: http://localhost:${PORT}/curriculo`);
   console.log(`🏢 Empresa API: http://localhost:${PORT}/empresa`);
+  console.log(`📝 Candidatura API: http://localhost:${PORT}/candidatura`);
 });
 

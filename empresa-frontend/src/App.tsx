@@ -11,6 +11,8 @@ import JobsList from "./pages/Jobs/index";
 import JobForm from "./pages/Jobs/JobForm";
 import JobDetails from "./pages/Jobs/JobDetails";
 import CandidatesList from "./pages/Candidates/index";
+import CurriculoView from "./pages/Candidates/CurriculoView";
+import TestesView from "./pages/Candidates/TestesView";
 import AIAnalysis from "./pages/AI/index";
 import Tests from "./pages/Tests";
 import Settings from "./pages/Settings";
@@ -92,6 +94,26 @@ const AppRoutes = () => (
           <ProtectedRoute>
             <AppLayout>
               <CandidatesList />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/candidatos/:id/curriculo"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CurriculoView />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/candidatos/:id/testes"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <TestesView />
             </AppLayout>
           </ProtectedRoute>
         }

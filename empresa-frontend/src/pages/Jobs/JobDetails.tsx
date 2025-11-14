@@ -1,10 +1,11 @@
-import { ArrowLeft, Edit, Trash2, Users, Calendar, Briefcase, MapPin, DollarSign } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Users, Calendar, Briefcase, MapPin, DollarSign, Share2, Linkedin, Loader2 } from "lucide-react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import mockVagas from "@/mockData/mockVagas.json";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 const mockJob = {
   id: "1",
@@ -22,51 +23,243 @@ const mockJob = {
 
 const statusConfig = {
   active: { label: "Ativa", variant: "default" as const },
-  closed: { label: "Encerrada", variant: "secondary" as const },
+  closed: { label: "Encerrada", variant: "destructive" as const },
+  rascunho: { label: "Rascunho", variant: "outline" as const },
   syncing: { label: "Rascunho", variant: "outline" as const },
+};
+
+const employmentStatusLabels: Record<string, string> = {
+  FULL_TIME: "Tempo Integral",
+  PART_TIME: "Meio Período",
+  CONTRACT: "Contrato",
+  TEMPORARY: "Temporário",
+  OTHER: "Outro",
+  VOLUNTEER: "Voluntário",
+  INTERNSHIP: "Estágio",
+};
+
+const workplaceLabels: Record<string, string> = {
+  ON_SITE: "Presencial",
+  HYBRID: "Híbrido",
+  REMOTE: "Remoto",
 };
 
 export default function JobDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const { toast } = useToast();
 
-  const found = (mockVagas.vagas || []).find((v: any) => String(v.id) === String(id) || String(v.id) === `job-${id}` || String(v.id).endsWith(String(id)));
-  console.log("Found job:", found);
-  const job = found
-    ? {
-        id: String(found.id),
-        title: found.job_title,
-        description: found.description,
-        status: (found.status as any) || "active",
-        candidates: (found.applicationsCount ?? (found.candidateIds ? found.candidateIds.length : undefined)) || 0,
-        date: found.created_at,
-        type: found.employment_status,
-        salary: found.salario,
-        location: found.location,
-        requirements: (found.screening_questions && found.screening_questions.map((q: any) => q.text).join("\n")) || "",
-        job_config: found.job_config || { tests: { test1: false, test2: false, test3: false, test4: false }, interviews_count: 1, active_days: 30 },
+  const [job, setJob] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState("rascunho");
+
+  // Buscar vaga da API
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`http://localhost:3001/jobs/${id}`);
+        
+        if (!response.ok) {
+          throw new Error('Erro ao buscar vaga');
+        }
+
+        const data = await response.json();
+        console.log("✅ Vaga carregada da API:", data);
+
+        // Busca contagem de candidaturas
+        let candidatosCount = 0;
+        try {
+          const candidaturasResponse = await fetch(`http://localhost:3001/candidatura/vaga/${id}`);
+          if (candidaturasResponse.ok) {
+            const candidaturasData = await candidaturasResponse.json();
+            candidatosCount = candidaturasData.data?.length || 0;
+            console.log('✅ Candidaturas encontradas:', candidatosCount);
+          }
+        } catch (error) {
+          console.log('⚠️  Erro ao buscar candidaturas, usando 0:', error);
+        }
+
+        const vagaData = {
+          id: data.id,
+          title: data.jobTitle,
+          description: data.description,
+          status: data.status || "rascunho",
+          candidates: candidatosCount,
+          date: data.createdAt,
+          type: data.employmentStatus,
+          workplace: data.workplace, // ON_SITE, HYBRID, REMOTE
+          salary: data.salaryAnonymous 
+            ? "A combinar" 
+            : data.salaryAmount 
+            ? `R$ ${data.salaryAmount.toLocaleString('pt-BR')}` 
+            : data.salaryMin && data.salaryMax
+            ? `R$ ${data.salaryMin.toLocaleString('pt-BR')} - R$ ${data.salaryMax.toLocaleString('pt-BR')}`
+            : "Não informado",
+          location: data.location,
+          company: data.company,
+          job_config: data.jobConfig || { tests: { test1: false, test2: false, test3: false, test4: false }, interviews_count: 1, active_days: 30 },
+        };
+
+        setJob(vagaData);
+        setCurrentStatus(data.status || "rascunho");
+      } catch (error) {
+        console.error("❌ Erro ao buscar vaga:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar a vaga",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
       }
-    : mockJob;
+    };
+
+    if (id) {
+      fetchJob();
+    }
+  }, [id, toast]);
+
+  const isDraft = ["syncing", "rascunho", "draft"].includes(String(currentStatus));
+  const isClosed = String(currentStatus) === "closed";
+  const isActive = String(currentStatus) === "active";
+
+  // Debug: Log status
+  console.log('🔍 [STATUS] currentStatus:', currentStatus, { isDraft, isClosed, isActive });
 
   const handleEdit = () => {
+    // Não permite editar vaga ativa/publicada
+    if (isActive) {
+      toast({
+        title: "⚠️ Edição bloqueada",
+        description: "Não é possível editar vagas publicadas. Apenas vagas em rascunho podem ser editadas.",
+        variant: "destructive"
+      });
+      return;
+    }
     navigate(`/vagas/${id}/editar`);
   };
 
-  // Navigation state can carry the status (passed from the list) — prefer it when present
-  const navStateStatus = (location.state as any)?.status;
-  const effectiveStatus = navStateStatus ?? job.status;
-  console.log("Effective status:", effectiveStatus);
-  const isDraft = ["syncing", "rascunho", "draft"].includes(String(effectiveStatus));
-  const isClosed = String(effectiveStatus) === "closed";
-  const isActive = String(effectiveStatus) === "active";
-
   const handleDelete = () => {
-    // Aqui seria a lógica de deletar
     if (confirm("Tem certeza que deseja excluir esta vaga?")) {
       navigate("/vagas");
     }
   };
+
+  const handlePublish = async () => {
+    try {
+      console.log('📤 [PUBLISH] Publicando vaga:', id);
+      
+      // Atualiza status no backend
+      const response = await fetch(`http://localhost:3001/jobs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'active'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao publicar vaga');
+      }
+
+      console.log('✅ [PUBLISH] Vaga publicada com sucesso');
+      
+      // Atualiza estado local
+      setCurrentStatus("active");
+      
+      toast({
+        title: "✅ Vaga publicada!",
+        description: "A vaga foi publicada com sucesso. Agora você pode compartilhar o link com candidatos.",
+      });
+    } catch (error) {
+      console.error('❌ [PUBLISH] Erro ao publicar vaga:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível publicar a vaga. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleClose = async () => {
+    if (!confirm("Tem certeza que deseja encerrar esta vaga? Não será mais possível receber candidaturas.")) {
+      return;
+    }
+
+    try {
+      console.log('🔒 [CLOSE] Encerrando vaga:', id);
+      
+      // Atualiza status no backend
+      const response = await fetch(`http://localhost:3001/jobs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'closed'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao encerrar vaga');
+      }
+
+      console.log('✅ [CLOSE] Vaga encerrada com sucesso');
+      
+      // Atualiza estado local
+      setCurrentStatus("closed");
+      
+      toast({
+        title: "🔒 Vaga encerrada!",
+        description: "A vaga foi encerrada. Não será mais possível receber novas candidaturas.",
+      });
+    } catch (error) {
+      console.error('❌ [CLOSE] Erro ao encerrar vaga:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível encerrar a vaga. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleShare = () => {
+    // Gera link de candidatura (candidato-frontend roda na porta 5174)
+    const candidateLink = `http://localhost:5174/candidato?vaga=${job?.id}`;
+    navigator.clipboard.writeText(candidateLink);
+    toast({
+      title: "🔗 Link copiado!",
+      description: "O link de candidatura foi copiado para a área de transferência.",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate("/vagas")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
+        </Button>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">Vaga não encontrada</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -78,13 +271,26 @@ export default function JobDetails() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">{job.title}</h1>
-              
+              <Badge variant={statusConfig[currentStatus as keyof typeof statusConfig]?.variant || "outline"}>
+                {statusConfig[currentStatus as keyof typeof statusConfig]?.label || currentStatus}
+              </Badge>
+              {job.candidates > 0 && (
+                <Badge variant="secondary" className="gap-1">
+                  <Users className="h-3 w-3" />
+                  {job.candidates}
+                </Badge>
+              )}
             </div>
             <p className="text-muted-foreground">Detalhes da vaga</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleEdit}>
+          <Button 
+            variant="outline" 
+            onClick={handleEdit}
+            disabled={isActive}
+            className={isActive ? "opacity-50 cursor-not-allowed" : ""}
+          >
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </Button>
@@ -147,9 +353,20 @@ export default function JobDetails() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
-                <div>
+                <div className="flex-1">
                   <p className="text-sm text-muted-foreground">Tipo</p>
-                  <p className="font-medium">{job.type}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {job.type && (
+                      <Badge variant="secondary" className="font-medium">
+                        {employmentStatusLabels[job.type] || job.type}
+                      </Badge>
+                    )}
+                    {job.workplace && (
+                      <Badge variant="outline" className="font-medium">
+                        {workplaceLabels[job.workplace] || job.workplace}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               <Separator />
@@ -165,7 +382,11 @@ export default function JobDetails() {
                 <MapPin className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Localização</p>
-                  <p className="font-medium">{job.location || "Não informado"}</p>
+                  <p className="font-medium">
+                    {typeof job.location === 'object' && job.location?.text 
+                      ? job.location.text 
+                      : job.location || "Não informado"}
+                  </p>
                 </div>
               </div>
               <Separator />
@@ -191,29 +412,38 @@ export default function JobDetails() {
 
           <Card>
             <CardHeader>
-             
+              <CardTitle>Ações</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {isDraft ? (
                 // Se for rascunho/draft — mostrar somente o botão de publicar
-                <Button className="w-full" variant="default">
+                <Button className="w-full" variant="default" onClick={handlePublish}>
+                  <Linkedin className="mr-2 h-4 w-4" />
                   Publicar no LinkedIn
                 </Button>
               ) : isClosed ? (
                 // Se estiver encerrada — somente ver candidatos
-                <Button className="w-full" variant="outline" onClick={() => navigate(`/candidaturas?job=${id ?? job.id}`)}>
+                <Button className="w-full" variant="outline" onClick={() => navigate(`/candidaturas?vaga=${id ?? job.id}`)}>
+                  <Users className="mr-2 h-4 w-4" />
                   Ver Candidatos
                 </Button>
               ) : (
-                // Caso padrão (ativa ou outro) — ver candidatos sempre e, se ativa, mostrar compartilhar
+                // Caso padrão (ativa ou outro) — ver candidatos sempre e, se ativa, mostrar compartilhar e encerrar
                 <>
-                  <Button className="w-full" variant="outline" onClick={() => navigate(`/candidaturas?job=${id ?? job.id}`)}>
+                  <Button className="w-full" variant="default" onClick={() => navigate(`/candidaturas?vaga=${id ?? job.id}`)}>
+                    <Users className="mr-2 h-4 w-4" />
                     Ver Candidatos
                   </Button>
                   {isActive && (
-                    <Button className="w-full" variant="outline">
-                      Compartilhar Vaga
-                    </Button>
+                    <>
+                      <Button className="w-full" variant="outline" onClick={handleShare}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Compartilhar Vaga
+                      </Button>
+                      <Button className="w-full" variant="destructive" onClick={handleClose}>
+                        🔒 Encerrar Vaga
+                      </Button>
+                    </>
                   )}
                 </>
               )}

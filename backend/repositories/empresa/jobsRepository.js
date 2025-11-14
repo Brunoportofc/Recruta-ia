@@ -3,7 +3,7 @@ import prisma from '../../lib/prisma.js';
 class JobsRepository {
   async findAll() {
     try {
-      const jobs = await prisma.job.findMany({
+      const jobs = await prisma.vaga.findMany({
         orderBy: {
           createdAt: 'desc'
         }
@@ -16,7 +16,7 @@ class JobsRepository {
 
   async create(jobData) {
     try {
-      const job = await prisma.job.create({
+      const job = await prisma.vaga.create({
         data: jobData
       });
       return job;
@@ -27,7 +27,7 @@ class JobsRepository {
 
   async findById(id) {
     try {
-      const job = await prisma.job.findUnique({
+      const job = await prisma.vaga.findUnique({
         where: { id }
       });
       
@@ -43,7 +43,7 @@ class JobsRepository {
 
   async update(id, jobData) {
     try {
-      const job = await prisma.job.update({
+      const job = await prisma.vaga.update({
         where: { id },
         data: jobData
       });
@@ -55,7 +55,7 @@ class JobsRepository {
 
   async delete(id) {
     try {
-      await prisma.job.delete({
+      await prisma.vaga.delete({
         where: { id }
       });
       return true;
