@@ -17,10 +17,8 @@ interface ScreeningQuestion {
   position?: number;
   must_match: boolean;
   answer_type: "numeric" | "multiple_choices";
-  // Para numeric
   min_expectation?: number;
   max_expectation?: number;
-  // Para multiple_choices
   choices?: string[];
   expected_choices?: string[];
 }
@@ -32,19 +30,18 @@ export default function JobForm() {
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const tabs = ["basic", "recruiter", "config"] as const;
+  const [currentTab, setCurrentTab] = useState<typeof tabs[number]>("basic");
   const [formData, setFormData] = useState({
-    // Campos obrigatórios
     job_title: { text: "" },
     company: { text: "" },
     workplace: "" as "ON_SITE" | "HYBRID" | "REMOTE" | "",
     location: "",
     description: "",
-    
-    // Campos opcionais
+  
     employment_status: "" as "FULL_TIME" | "PART_TIME" | "CONTRACT" | "TEMPORARY" | "OTHER" | "VOLUNTEER" | "INTERNSHIP" | "",
     auto_rejection_template: "",
-    
-    // Recruiter (obrigatório)
+  
     recruiter: {
       project: { name: "" },
       functions: [] as string[],
@@ -60,7 +57,6 @@ export default function JobForm() {
       },
       send_rejection_notification: true,
     },
-    // Configuração da Vaga (UI separada)
     job_config: {
       tests: {
         test1: false,
@@ -68,22 +64,38 @@ export default function JobForm() {
         test3: false,
         test4: false,
       },
-      interviews_count: 1, // 1..20
-      active_days: 30, // número de dias que a vaga ficará ativa
+      interviews_count: 1, 
+      active_days: 30, 
     },
+    salary: {
+      mode: "single" as "single" | "range",
+      amount: "" as number | string,
+      min: "" as number | string,
+      max: "" as number | string,
+    },
+    salary_anonymous: false,
     
-  // screening_questions removed because candidaturas serão feitas via link externo
   });
 
-  // screening questions removed from UI (handled via external form)
 
+  const handleAdvance = () => {
+    const nextIndex = tabs.indexOf(currentTab) + 1;
+    if (nextIndex < tabs.length) {
+      setCurrentTab(tabs[nextIndex]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Só submete se estiver na última aba (config)
+    if (currentTab !== "config") {
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
-      // Preparar dados para API
       const payload = {
         job_title: formData.job_title.text ? { text: formData.job_title.text } : { id: formData.job_title.text },
         company: formData.company.text ? { text: formData.company.text } : { id: formData.company.text },
@@ -92,7 +104,6 @@ export default function JobForm() {
         description: formData.description,
         ...(formData.employment_status && { employment_status: formData.employment_status }),
         ...(formData.auto_rejection_template && { auto_rejection_template: formData.auto_rejection_template }),
-  // screening handled via external apply_url; removed from payload
         recruiter: {
           project: formData.recruiter.project.name ? { name: formData.recruiter.project.name } : { id: formData.recruiter.project.name },
           functions: formData.recruiter.functions,
@@ -108,17 +119,25 @@ export default function JobForm() {
           auto_archive_applicants: formData.recruiter.auto_archive_applicants,
           send_rejection_notification: formData.recruiter.send_rejection_notification,
         },
-        // job configuration (tests, interviews and active period)
         job_config: {
           tests: formData.job_config.tests,
           interviews_count: formData.job_config.interviews_count,
           active_days: formData.job_config.active_days,
         },
+        status: "rascunho",
+         ...(formData.salary_anonymous
+          ? { salary_anonymous: true }
+          : formData.salary.mode === "range"
+          ? {
+              ...(formData.salary.min !== "" && { salary_min: Number(formData.salary.min) }),
+              ...(formData.salary.max !== "" && { salary_max: Number(formData.salary.max) }),
+            }
+          : formData.salary.amount !== ""
+          ? { salary_amount: Number(formData.salary.amount) }
+          : {}),
       };
-
       console.log("📤 Enviando payload para API:", payload);
-      
-      // CHAMADA À API DO BACKEND
+
       const response = await fetch('http://localhost:3001/jobs', {
         method: 'POST',
         headers: {
@@ -133,24 +152,25 @@ export default function JobForm() {
         throw new Error(result.error || result.details || 'Erro ao criar vaga');
       }
 
-      // SUCESSO
       console.log("✅ Vaga criada com sucesso:", result);
-      
+
       toast({
-        title: "✅ Vaga publicada!",
-        description: result.message || "A vaga foi criada e publicada no LinkedIn com sucesso.",
+        title: "✅ Vaga criada como rascunho!",
+        description: result.message || "A vaga foi criada como rascunho.",
         variant: "default",
       });
-      
-      // Redirecionar após 1 segundo para dar tempo de ver o toast
+
+      const createdId = result.id ?? result.data?.id ?? result.job?.id;
       setTimeout(() => {
-        navigate("/vagas");
-      }, 1000);
+        if (createdId) {
+          navigate(`/vagas/${createdId}`, { state: { status: 'rascunho' } });
+        } else {
+          navigate('/vagas');
+        }
+      }, 800);
 
     } catch (error) {
-      // ERRO
       console.error("❌ Erro ao criar vaga:", error);
-      
       toast({
         title: "❌ Erro ao criar vaga",
         description: error instanceof Error ? error.message : "Ocorreu um erro ao publicar a vaga. Tente novamente.",
@@ -241,7 +261,7 @@ export default function JobForm() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Tabs defaultValue="basic" className="space-y-6">
+        <Tabs value={currentTab} onValueChange={(v) => setCurrentTab(v as any)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="basic">Informações Básicas</TabsTrigger>
               <TabsTrigger value="recruiter">Recrutamento</TabsTrigger>
@@ -356,25 +376,89 @@ export default function JobForm() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="employment_status">Status de Emprego</Label>
-                  <Select
-                    value={formData.employment_status}
-                    onValueChange={(value) => handleChange("employment_status", value)}
-                  >
-                    <SelectTrigger id="employment_status">
-                      <SelectValue placeholder="Selecione (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FULL_TIME">Tempo Integral</SelectItem>
-                      <SelectItem value="PART_TIME">Meio Período</SelectItem>
-                      <SelectItem value="CONTRACT">Contrato</SelectItem>
-                      <SelectItem value="TEMPORARY">Temporário</SelectItem>
-                      <SelectItem value="OTHER">Outro</SelectItem>
-                      <SelectItem value="VOLUNTEER">Voluntário</SelectItem>
-                      <SelectItem value="INTERNSHIP">Estágio</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="employment_status">Status de Emprego</Label>
+                    <Select
+                      value={formData.employment_status}
+                      onValueChange={(value) => handleChange("employment_status", value)}
+                    >
+                      <SelectTrigger id="employment_status">
+                        <SelectValue placeholder="Selecione (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FULL_TIME">Tempo Integral</SelectItem>
+                        <SelectItem value="PART_TIME">Meio Período</SelectItem>
+                        <SelectItem value="CONTRACT">Contrato</SelectItem>
+                        <SelectItem value="TEMPORARY">Temporário</SelectItem>
+                        <SelectItem value="OTHER">Outro</SelectItem>
+                        <SelectItem value="VOLUNTEER">Voluntário</SelectItem>
+                        <SelectItem value="INTERNSHIP">Estágio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="salary">Salário</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={formData.salary.mode === "range" ? "default" : "outline"}
+                        onClick={() => handleChange("salary.mode", formData.salary.mode === "range" ? "single" : "range")}
+                      >
+                        Range
+                      </Button>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={formData.salary_anonymous ? "default" : "outline"}
+                        onClick={() => {
+                          if (!formData.salary_anonymous) {
+                            handleChange("salary.amount", "");
+                            handleChange("salary.min", "");
+                            handleChange("salary.max", "");
+                          }
+                          handleChange("salary_anonymous", !formData.salary_anonymous);
+                        }}
+                      >
+                        Anônimo
+                      </Button>
+                    </div>
+
+                    <div className="mt-2">
+                      {formData.salary_anonymous ? (
+                        <p className="text-sm text-muted-foreground">O salário não será exibido na vaga.</p>
+                      ) : formData.salary.mode === "range" ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <Input
+                            id="salary_min"
+                            type="number"
+                            placeholder="Mínimo"
+                            value={formData.salary.min}
+                            onChange={(e) => handleChange("salary.min", e.target.value)}
+                          />
+                          <Input
+                            id="salary_max"
+                            type="number"
+                            placeholder="Máximo"
+                            value={formData.salary.max}
+                            onChange={(e) => handleChange("salary.max", e.target.value)}
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          id="salary_amount"
+                          type="number"
+                          placeholder="Valor"
+                          value={formData.salary.amount}
+                          onChange={(e) => handleChange("salary.amount", e.target.value)}
+                          disabled={formData.salary_anonymous}
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -661,28 +745,58 @@ export default function JobForm() {
           {/* Abas de triagem/avançado/rejeição removidas (candidaturas via link externo) */}
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => navigate("/vagas")}
-            disabled={isSubmitting}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publicando no LinkedIn...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                {isEditing ? "Salvar Alterações" : "Criar Vaga no LinkedIn"}
-              </>
+        <div className="flex justify-between items-center gap-2 pt-6">
+          <div className="flex items-center gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate("/vagas")}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+
+            {tabs.indexOf(currentTab) > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentTab(tabs[tabs.indexOf(currentTab) - 1])}
+                disabled={isSubmitting}
+              >
+                Voltar
+              </Button>
             )}
-          </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {currentTab !== "config" ? (
+              <Button 
+                type="button" 
+                onClick={handleAdvance}
+                disabled={isSubmitting}
+              >
+                Avançar
+              </Button>
+            ) : (
+              <Button 
+                type="button" 
+                onClick={(e) => handleSubmit(e as any)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando rascunho...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Criar Vaga
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </form>
     </div>

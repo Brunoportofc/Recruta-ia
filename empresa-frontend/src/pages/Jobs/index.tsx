@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import mockVagas from "@/mockData/mockVagas.json";
 
 interface Job {
   id: string;
@@ -21,60 +22,10 @@ interface Job {
 const statusConfig = {
   active: { label: "Ativa", variant: "default" as const },
   closed: { label: "Encerrada", variant: "secondary" as const },
-  syncing: { label: "Sincronizando", variant: "outline" as const },
-  error: { label: "Erro", variant: "destructive" as const },
-  draft: { label: "Rascunho", variant: "secondary" as const },
+  rascunho: { label: "Rascunho", variant: "secondary" as const },
 };
 
-// Mock data for jobs
-const mockJobs: Job[] = [
-  {
-    id: "1",
-    jobTitle: "Desenvolvedor Frontend",
-    description: "Desenvolvimento de interfaces web utilizando React.",
-    status: "active",
-    workplace: "REMOTE",
-    company: "TechCorp",
-    createdAt: "2025-11-01T10:00:00Z",
-    linkedinUrl: "https://linkedin.com/job1",
-  },
-  {
-    id: "2",
-    jobTitle: "Analista de Dados",
-    description: "Análise de dados e criação de dashboards.",
-    status: "closed",
-    workplace: "HYBRID",
-    company: "DataSolutions",
-    createdAt: "2025-10-15T10:00:00Z",
-  },
-  {
-    id: "3",
-    jobTitle: "Gerente de Projetos",
-    description: "Gestão de projetos ágeis e equipes multidisciplinares.",
-    status: "draft",
-    workplace: "ON_SITE",
-    company: "ProjectMasters",
-    createdAt: "2025-09-20T10:00:00Z",
-  },
-  {
-    id: "4",
-    jobTitle: "Designer UX/UI",
-    description: "Criação de experiências de usuário e interfaces visuais.",
-    status: "syncing",
-    workplace: "REMOTE",
-    company: "CreativeStudio",
-    createdAt: "2025-11-05T10:00:00Z",
-  },
-  {
-    id: "5",
-    jobTitle: "Especialista em Segurança da Informação",
-    description: "Garantir a segurança dos sistemas e dados da empresa.",
-    status: "error",
-    workplace: "HYBRID",
-    company: "SecureIT",
-    createdAt: "2025-10-25T10:00:00Z",
-  },
-];
+// use the imported JSON (mockVagas.vagas) as the source of truth for local development
 
 export default function JobsList() {
   const navigate = useNavigate();
@@ -84,8 +35,23 @@ export default function JobsList() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    // loadJobs();
-    setJobs(mockJobs);
+    try {
+      const mapped = (mockVagas.vagas || []).map((v: any) => ({
+        id: String(v.id),
+        jobTitle: v.job_title || v.titulo || v.jobTitle,
+        description: v.description || v.descricao || "",
+        status: (v.status as Job["status"]) || "active",
+        workplace: v.workplace || "REMOTE",
+        company: v.company || "",
+        createdAt: v.created_at || v.createdAt || new Date().toISOString(),
+        linkedinUrl: v.linkedin_url || v.linkedinUrl || undefined,
+      }));
+
+      setJobs(mapped);
+    } catch (err) {
+      // fallback to empty
+      setJobs([]);
+    }
     setIsLoading(false);
   }, []);
 
@@ -118,8 +84,8 @@ export default function JobsList() {
     navigate("/vagas/nova");
   };
 
-  const handleJobClick = (jobId: string) => {
-    navigate(`/vagas/${jobId}`);
+  const handleJobClick = (jobId: string, jobStatus?: string) => {
+    navigate(`/vagas/${jobId}`, { state: { status: jobStatus } });
   };
 
   const filteredJobs = jobs.filter(job =>
@@ -176,7 +142,7 @@ export default function JobsList() {
           <Card
             key={job.id}
             className="hover:border-primary/50 transition-colors cursor-pointer flex flex-col h-full"
-            onClick={() => handleJobClick(job.id)}
+            onClick={() => handleJobClick(job.id, job.status)}
           >
             <CardHeader className="flex-1">
               <div className="flex items-start justify-between gap-2 mb-2">

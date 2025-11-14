@@ -1,0 +1,262 @@
+[
+    {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "linkedin_id": "ln-1111",
+        "email": "ana.silva@example.com",
+        "nome_completo": "Ana Maria Silva",
+        "telefone": "(11) 98765-4321",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "score": 92,
+        "linkedin_url": "https://www.linkedin.com/in/ana-silva",
+        "foto_perfil_url": "https://example.com/photos/ana.jpg",
+        "objetivo_profissional": "Atuar como desenvolvedora frontend em projetos desafiadores",
+        "origem_dados": "upload",
+        "perfil_completo": true,
+        "created_at": "2025-01-10T10:00:00.000Z",
+        "updated_at": "2025-11-01T12:00:00.000Z",
+        "certificacoes": [
+            { "nome": "AWS Certified Developer", "instituicao": "AWS", "ano": 2023 }
+        ],
+        "experiencias": [
+            { "empresa": "Tech Solutions", "cargo": "Frontend Developer", "inicio": "2022-06-01", "fim": "2024-08-30", "descricao": "Desenvolvimento de interfaces com React e TypeScript" }
+        ],
+        "formacoes": [
+            { "curso": "Ciência da Computação", "instituicao": "USP", "ano_conclusao": 2021 }
+        ],
+        "habilidades": ["React", "TypeScript", "CSS", "Testing"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Inglês", "nivel": "Avançado" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000002",
+        "linkedin_id": "ln-2222",
+        "email": "carlos.santos@example.com",
+        "nome_completo": "Carlos Alberto Santos",
+        "telefone": "(21) 99876-5432",
+        "cidade": "Rio de Janeiro",
+        "estado": "RJ",
+        "score": 85,
+        "linkedin_url": null,
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Atuar como backend engineer em ambientes cloud",
+        "origem_dados": "unipile",
+        "perfil_completo": false,
+        "created_at": "2024-05-20T09:15:00.000Z",
+        "updated_at": "2025-09-10T11:00:00.000Z",
+        "certificacoes": [],
+        "experiencias": [
+            { "empresa": "Cloud Systems", "cargo": "Backend Developer", "inicio": "2019-02-01", "fim": null, "descricao": "APIs em Node.js e microserviços" }
+        ],
+        "formacoes": [
+            { "curso": "Engenharia de Computação", "instituicao": "UFRJ", "ano_conclusao": 2018 }
+        ],
+        "habilidades": ["Node.js", "Postgres", "Docker", "Kubernetes"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Inglês", "nivel": "Intermediário" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000003",
+        "linkedin_id": "ln-3333",
+        "email": "mariana.costa@example.com",
+        "nome_completo": "Mariana Costa",
+        "telefone": "(31) 97654-3210",
+        "cidade": "Belo Horizonte",
+        "estado": "MG",
+        "score": 88,
+        "linkedin_url": "https://www.linkedin.com/in/mariana-costa",
+        "foto_perfil_url": "https://example.com/photos/mariana.jpg",
+        "objetivo_profissional": "Trabalhar com design de experiências digitais",
+        "origem_dados": "linkedin",
+        "perfil_completo": true,
+        "created_at": "2024-11-11T14:00:00.000Z",
+        "updated_at": "2025-10-15T09:30:00.000Z",
+        "certificacoes": [],
+        "experiencias": [
+            { "empresa": "Creative Studio", "cargo": "UX Designer", "inicio": "2021-03-01", "fim": null, "descricao": "Design de interfaces e pesquisa com usuário" }
+        ],
+        "formacoes": [
+            { "curso": "Design Gráfico", "instituicao": "Universidade X", "ano_conclusao": 2020 }
+        ],
+        "habilidades": ["Figma", "User Research", "Prototipagem"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Espanhol", "nivel": "Intermediário" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000004",
+        "linkedin_id": "ln-4444",
+        "email": "joao.oliveira@example.com",
+        "nome_completo": "João Oliveira",
+        "telefone": "(41) 98765-1234",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "score": 90,
+        "linkedin_url": "https://www.linkedin.com/in/joao-oliveira",
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Posição full stack com foco em Node e React",
+        "origem_dados": "upload",
+        "perfil_completo": true,
+        "created_at": "2023-08-01T08:00:00.000Z",
+        "updated_at": "2025-03-12T10:20:00.000Z",
+        "certificacoes": [{ "nome": "Certified Scrum Master", "instituicao": "Scrum Alliance", "ano": 2022 }],
+        "experiencias": [
+            { "empresa": "Digital Agency", "cargo": "Full Stack Developer", "inicio": "2020-01-01", "fim": null, "descricao": "E-commerce e integrações" }
+        ],
+        "formacoes": [
+            { "curso": "Sistemas de Informação", "instituicao": "PUC-PR", "ano_conclusao": 2019 }
+        ],
+        "habilidades": ["React", "Node.js", "Postgres"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000005",
+        "linkedin_id": "ln-5555",
+        "email": "fernanda.lima@example.com",
+        "nome_completo": "Fernanda Lima",
+        "telefone": "(51) 99876-2345",
+        "cidade": "Porto Alegre",
+        "estado": "RS",
+        "score": 78,
+        "linkedin_url": null,
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Atuar com análise de dados e machine learning",
+        "origem_dados": "unipile",
+        "perfil_completo": false,
+        "created_at": "2022-06-15T12:00:00.000Z",
+        "updated_at": "2024-12-01T09:00:00.000Z",
+        "certificacoes": [],
+        "experiencias": [
+            { "empresa": "Analytics Co.", "cargo": "Data Analyst", "inicio": "2021-05-01", "fim": null, "descricao": "Dashboards e ETL" }
+        ],
+        "formacoes": [
+            { "curso": "Estatística", "instituicao": "UFRGS", "ano_conclusao": 2020 }
+        ],
+        "habilidades": ["SQL", "Python", "Pandas"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000006",
+        "linkedin_id": "ln-6666",
+        "email": "pedro.gomes@example.com",
+        "nome_completo": "Pedro Gomes",
+        "telefone": "(61) 97654-5678",
+        "cidade": "Brasília",
+        "estado": "DF",
+        "score": 95,
+        "linkedin_url": "https://www.linkedin.com/in/pedro-gomes",
+        "foto_perfil_url": "https://example.com/photos/pedro.jpg",
+        "objetivo_profissional": "Atuar como DevOps/Infra SRE",
+        "origem_dados": "upload",
+        "perfil_completo": true,
+        "created_at": "2021-03-10T10:00:00.000Z",
+        "updated_at": "2025-05-20T16:00:00.000Z",
+        "certificacoes": [{ "nome": "CKA", "instituicao": "CNCF", "ano": 2022 }],
+        "experiencias": [
+            { "empresa": "Infra Co.", "cargo": "DevOps Engineer", "inicio": "2018-07-01", "fim": null, "descricao": "Automação e infraestrutura em AWS" }
+        ],
+        "formacoes": [
+            { "curso": "Engenharia da Computação", "instituicao": "UnB", "ano_conclusao": 2017 }
+        ],
+        "habilidades": ["AWS", "Docker", "Kubernetes", "Terraform"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Inglês", "nivel": "Avançado" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000007",
+        "linkedin_id": "ln-7777",
+        "email": "lucia.ferreira@example.com",
+        "nome_completo": "Lucia Ferreira",
+        "telefone": "(71) 98765-6789",
+        "cidade": "Salvador",
+        "estado": "BA",
+        "score": 82,
+        "linkedin_url": null,
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Gerenciar produtos digitais",
+        "origem_dados": "linkedin",
+        "perfil_completo": true,
+        "created_at": "2020-09-01T09:00:00.000Z",
+        "updated_at": "2025-02-18T12:00:00.000Z",
+        "certificacoes": [],
+        "experiencias": [
+            { "empresa": "Product Co.", "cargo": "Product Manager", "inicio": "2019-04-01", "fim": null, "descricao": "Roadmap e liderança" }
+        ],
+        "formacoes": [
+            { "curso": "Administração", "instituicao": "UESB", "ano_conclusao": 2015 }
+        ],
+        "habilidades": ["Product Management", "Jira", "Comunicação"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Inglês", "nivel": "Intermediário" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000008",
+        "linkedin_id": "ln-8888",
+        "email": "gustavo.martins@example.com",
+        "nome_completo": "Gustavo Martins",
+        "telefone": "(81) 99876-7890",
+        "cidade": "Recife",
+        "estado": "PE",
+        "score": 75,
+        "linkedin_url": null,
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Atuar como QA Automation",
+        "origem_dados": "upload",
+        "perfil_completo": false,
+        "created_at": "2023-02-20T10:00:00.000Z",
+        "updated_at": "2024-07-11T09:00:00.000Z",
+        "certificacoes": [],
+        "experiencias": [
+            { "empresa": "QA Labs", "cargo": "QA Engineer", "inicio": "2022-01-01", "fim": null, "descricao": "Testes automatizados" }
+        ],
+        "formacoes": [
+            { "curso": "Análise e Desenvolvimento de Sistemas", "instituicao": "UniPE", "ano_conclusao": 2021 }
+        ],
+        "habilidades": ["Selenium", "Cypress", "Java"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-000000000009",
+        "linkedin_id": "ln-9999",
+        "email": "beatriz.alves@example.com",
+        "nome_completo": "Beatriz Alves",
+        "telefone": "(85) 97654-8901",
+        "cidade": "Fortaleza",
+        "estado": "CE",
+        "score": 68,
+        "linkedin_url": null,
+        "foto_perfil_url": null,
+        "objetivo_profissional": "Iniciar carreira como frontend",
+        "origem_dados": "unipile",
+        "perfil_completo": false,
+        "created_at": "2024-04-10T08:00:00.000Z",
+        "updated_at": "2025-01-05T10:00:00.000Z",
+        "certificacoes": [],
+        "experiencias": [],
+        "formacoes": [
+            { "curso": "Tecnologia em Análise e Desenvolvimento de Sistemas", "instituicao": "IFCE", "ano_conclusao": 2023 }
+        ],
+        "habilidades": ["HTML", "CSS", "JavaScript"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }]
+    },
+    {
+        "id": "00000000-0000-0000-0000-00000000000a",
+        "linkedin_id": "ln-1010",
+        "email": "rafael.barbosa@example.com",
+        "nome_completo": "Rafael Barbosa",
+        "telefone": "(91) 98765-9012",
+        "cidade": "Belém",
+        "estado": "PA",
+        "score": 93,
+        "linkedin_url": "https://www.linkedin.com/in/rafael-barbosa",
+        "foto_perfil_url": "https://example.com/photos/rafael.jpg",
+        "objetivo_profissional": "Atuar com Machine Learning e MLOps",
+        "origem_dados": "linkedin",
+        "perfil_completo": true,
+        "created_at": "2020-12-01T09:00:00.000Z",
+        "updated_at": "2025-06-30T15:00:00.000Z",
+        "certificacoes": [{ "nome": "TensorFlow Developer", "instituicao": "Google", "ano": 2021 }],
+        "experiencias": [
+            { "empresa": "AI Labs", "cargo": "ML Engineer", "inicio": "2019-01-01", "fim": null, "descricao": "Modelagem e deployment" }
+        ],
+        "formacoes": [
+            { "curso": "Engenharia de Computação", "instituicao": "UFPA", "ano_conclusao": 2018 }
+        ],
+        "habilidades": ["Python", "Machine Learning", "TensorFlow"],
+        "idiomas": [{ "idioma": "Português", "nivel": "Nativo" }, { "idioma": "Inglês", "nivel": "Avançado" }]
+    }
+]
